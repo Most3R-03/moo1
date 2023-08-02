@@ -1,0 +1,11 @@
+﻿D:\Visual Stdio IDE\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(531,5): warning MSB8028: 中间目录(Release\)包含从另一个项目(moo1(1).vcxproj)共享的文件。   这会导致错误的清除和重新生成行为。
+  FileName.cpp
+F:\Desktop\反编译山东理工大学\360免杀\shellcode_处理\shellcode变形\moo1 - 线程注入\FileName.cpp(8,1): warning C4005: “_CRT_SECURE_NO_WARNINGS”: 宏重定义
+F:\Desktop\反编译山东理工大学\360免杀\shellcode_处理\shellcode变形\moo1 - 线程注入\FileName.cpp(8,1): message : 之前在命令行上声明的“_CRT_SECURE_NO_WARNINGS”
+F:\Desktop\反编译山东理工大学\360免杀\shellcode_处理\shellcode变形\moo1 - 线程注入\FileName.cpp(229,23): warning C4018: “<”: 有符号/无符号不匹配
+  moo1.cpp
+F:\Desktop\反编译山东理工大学\360免杀\shellcode_处理\shellcode变形\moo1 - 线程注入\moo1.cpp(434,16): warning C4244: “初始化”: 从“long”转换到“char”，可能丢失数据
+F:\Desktop\反编译山东理工大学\360免杀\shellcode_处理\shellcode变形\moo1 - 线程注入\moo1.cpp(519,17): warning C4101: “aaa”: 未引用的局部变量
+  正在生成代码
+  已完成代码的生成
+  moo1.vcxproj -> F:\Desktop\反编译山东理工大学\360免杀\shellcode_处理\shellcode变形\moo1 - 线程注入\Release\moo1.exe
