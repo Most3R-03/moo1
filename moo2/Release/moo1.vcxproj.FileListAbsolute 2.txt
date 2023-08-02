@@ -1,2 +1,0 @@
-\\Mac\Home\Documents\渗透备份文件\7.12\moo1 - 线程注入\Release\moo1.exe
-F:\Desktop\反编译山东理工大学\360免杀\shellcode_处理\shellcode变形\moo1 - 线程注入\Release\moo1.exe
