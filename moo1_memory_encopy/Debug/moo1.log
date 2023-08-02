@@ -1,0 +1,4 @@
+﻿  moo1.cpp
+F:\Desktop\反编译山东理工大学\360免杀\shellcode_处理\shellcode变形\moo1 - 汇编反调试\moo1.cpp(26,25): error C2440: “初始化”: 无法从“const char [186]”转换为“char *”
+F:\Desktop\反编译山东理工大学\360免杀\shellcode_处理\shellcode变形\moo1 - 汇编反调试\moo1.cpp(26,25): message : 从字符串文本转换将丢失 const 限定符(请参阅 /Zc:strictStrings)
+F:\Desktop\反编译山东理工大学\360免杀\shellcode_处理\shellcode变形\moo1 - 汇编反调试\moo1.cpp(430,16): warning C4244: “初始化”: 从“long”转换到“char”，可能丢失数据
