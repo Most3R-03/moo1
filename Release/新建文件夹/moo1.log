@@ -1,0 +1,7 @@
+﻿  moo1.cpp
+F:\Desktop\反编译山东理工大学\360免杀\shellcode_处理\shellcode变形\moo1 - 汇编反调试\moo1.cpp(430,16): warning C4244: “初始化”: 从“long”转换到“char”，可能丢失数据
+F:\Desktop\反编译山东理工大学\360免杀\shellcode_处理\shellcode变形\moo1 - 汇编反调试\moo1.cpp(479,17): warning C4101: “aaa”: 未引用的局部变量
+  正在生成代码
+F:\Desktop\反编译山东理工大学\360免杀\shellcode_处理\shellcode变形\moo1 - 汇编反调试\moo1.cpp(166): warning C4715: “HttpGetReq”: 不是所有的控件路径都返回值
+F:\Desktop\反编译山东理工大学\360免杀\shellcode_处理\shellcode变形\moo1 - 汇编反调试\moo1.cpp(114): error C4700: 使用了未初始化的局部变量“address”
+LINK : fatal error LNK1257: 代码生成失败
