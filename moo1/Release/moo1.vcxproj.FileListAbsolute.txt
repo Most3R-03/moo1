@@ -2,3 +2,4 @@ F:\Desktop\反编译山东理工大学\360免杀\shellcode_处理\shellcode变�
 C:\Users\Tinkpad\Desktop\moo1 - 汇编反调试\Release\moo1.exe
 \\Mac\Home\Documents\源码分析\免杀\moo1 - 汇编反调试\Release\moo1.exe
 F:\Desktop\反编译山东理工大学\360免杀\shellcode_处理\shellcode变形\远程\moo1\Release\moo1.exe
+\\Mac\Home\Documents\源码分析\免杀\moo1\moo1\Release\moo1.exe

