@@ -57,7 +57,7 @@ struct DATA {
 
 };
 
-
+// 进行aes解密
 void DecryptAES(char* shellcode, DWORD shellcodeLen, char* key, DWORD keyLen) {
     HCRYPTPROV hProv;
     HCRYPTHASH hHash;

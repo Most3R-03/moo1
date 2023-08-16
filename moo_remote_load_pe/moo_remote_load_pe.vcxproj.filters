@@ -18,5 +18,8 @@
     <ClCompile Include="moo_remote_load_pe.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="encrypt.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
