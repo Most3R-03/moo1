@@ -368,6 +368,7 @@ char* GetNTHeaders(char* pe_buffer)
     return (char*)inh;
 }
 
+
 IMAGE_DATA_DIRECTORY* GetPEDirectory(PVOID pe_buffer, size_t dir_id)
 {
     if (dir_id >= IMAGE_NUMBEROF_DIRECTORY_ENTRIES) return NULL;
