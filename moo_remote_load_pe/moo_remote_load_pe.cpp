@@ -351,24 +351,24 @@ void freeargvW(wchar_t** array, int Argc)
     LocalFree(array);
 }
 
-
+// 从文件第一个字节定位到PE文件的头
 char* GetNTHeaders(char* pe_buffer)
 {
     if (pe_buffer == NULL) return NULL;
 
     IMAGE_DOS_HEADER* idh = (IMAGE_DOS_HEADER*)pe_buffer;
-    if (idh->e_magic != IMAGE_DOS_SIGNATURE) {
+    if (idh->e_magic != IMAGE_DOS_SIGNATURE) {  // 判断是否是PE文件
         return NULL;
     }
     const LONG kMaxOffset = 1024;
-    LONG pe_offset = idh->e_lfanew;
+    LONG pe_offset = idh->e_lfanew;  // NT头的起始位置 文件头到PE起始位置的偏移量
     if (pe_offset > kMaxOffset) return NULL;
-    IMAGE_NT_HEADERS32* inh = (IMAGE_NT_HEADERS32*)((char*)pe_buffer + pe_offset);
+    IMAGE_NT_HEADERS32* inh = (IMAGE_NT_HEADERS32*)((char*)pe_buffer + pe_offset); // PE头起始位置
     if (inh->Signature != IMAGE_NT_SIGNATURE) return NULL;
     return (char*)inh;
 }
 
-
+// 获取各表的RVA地址
 IMAGE_DATA_DIRECTORY* GetPEDirectory(PVOID pe_buffer, size_t dir_id)
 {
     if (dir_id >= IMAGE_NUMBEROF_DIRECTORY_ENTRIES) return NULL;
@@ -379,7 +379,7 @@ IMAGE_DATA_DIRECTORY* GetPEDirectory(PVOID pe_buffer, size_t dir_id)
     IMAGE_DATA_DIRECTORY* peDir = NULL;
 
     IMAGE_NT_HEADERS* nt_header = (IMAGE_NT_HEADERS*)nt_headers;
-    peDir = &(nt_header->OptionalHeader.DataDirectory[dir_id]);
+    peDir = &(nt_header->OptionalHeader.DataDirectory[dir_id]); // 各表RVA及大小
 
     if (peDir->VirtualAddress == NULL) {
         return NULL;
@@ -392,8 +392,8 @@ bool RepairIAT(PVOID modulePtr)
     IMAGE_DATA_DIRECTORY* importsDir = GetPEDirectory(modulePtr, IMAGE_DIRECTORY_ENTRY_IMPORT);
     if (importsDir == NULL) return false;
 
-    size_t maxSize = importsDir->Size;
-    size_t impAddr = importsDir->VirtualAddress;
+    size_t maxSize = importsDir->Size;  // 数据块的长度
+    size_t impAddr = importsDir->VirtualAddress;  // 数据块的起始位置
 
     IMAGE_IMPORT_DESCRIPTOR* lib_desc = NULL;
     size_t parsedSize = 0;
@@ -496,7 +496,7 @@ void PELoader(char* data, DWORD datasize)
     }
 
     IMAGE_DATA_DIRECTORY* relocDir = GetPEDirectory(data, IMAGE_DIRECTORY_ENTRY_BASERELOC);
-    preferAddr = (LPVOID)ntHeader->OptionalHeader.ImageBase;
+    preferAddr = (LPVOID)ntHeader->OptionalHeader.ImageBase; // 程序装载地址
 
 
     HMODULE dll = LoadLibraryA("ntdll.dll");
