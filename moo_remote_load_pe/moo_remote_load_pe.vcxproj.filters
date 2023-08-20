@@ -18,5 +18,13 @@
     <ClCompile Include="moo_remote_load_pe.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="FileName.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="HttpRequest.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

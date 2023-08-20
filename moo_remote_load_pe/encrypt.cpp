@@ -14,7 +14,7 @@
 
 #include "resource.h"
 
-
+// AESΩ‚√‹
 int AESDecrypt(char* payload, unsigned int payload_len, char* key, size_t keylen) {
 	HCRYPTPROV hProv;
 	HCRYPTHASH hHash;

