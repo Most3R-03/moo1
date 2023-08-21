@@ -13,10 +13,10 @@ def AESencrypt(plaintext, key):
   return ciphertext,key
  
 def dropFile(key, ciphertext):
-with open("encrypt.bin", "wb") as fc:
-  fc.write(ciphertext)
-with open("key.bin", "wb") as fk:
-  fk.write(key)
+  with open("encrypt.bin", "wb") as fc:
+    fc.write(ciphertext)
+  with open("key.bin", "wb") as fk:
+    fk.write(key)
 #print('char AESkey[] = { 0x' + ', 0x'.join(hex(x)[2:] for x in KEY) + ' };')
 #print('unsigned char AESshellcode[] = { 0x' + ', 0x'.join(hex(x)[2:] for x in ciphertext) + ' };')
 
