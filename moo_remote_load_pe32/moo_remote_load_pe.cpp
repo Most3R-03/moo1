@@ -44,13 +44,6 @@ using MyNtMapViewOfSection = NTSTATUS(NTAPI*)(
 
 
 
-typedef struct _BASE_RELOCATION_ENTRY {
-    WORD Offset : 12;
-    WORD Type : 4;
-} BASE_RELOCATION_ENTRY;
-
-
-
 struct DATA {
 
     LPVOID data;
@@ -58,7 +51,12 @@ struct DATA {
 
 };
 
+typedef struct _BASE_RELOCATION_ENTRY {
+    WORD Offset : 12;
+    WORD Type : 4;
+} BASE_RELOCATION_ENTRY;
 
+#define RELOC_32BIT_FIELD 3
 
 /* 定义常量 */
 #define HTTP_DEF_PORT     80  /* 连接的缺省端口 */
@@ -366,6 +364,11 @@ void freeargvW(wchar_t** array, int Argc)
     LocalFree(array);
 }
 
+
+
+
+
+// 仅修复表
 void FixBaseRelocTable(PVOID ModuleBase, IMAGE_NT_HEADERS* NTHeader)
   {
       int    OriginalImageBase;
@@ -377,37 +380,47 @@ void FixBaseRelocTable(PVOID ModuleBase, IMAGE_NT_HEADERS* NTHeader)
   
       //定位到可选PE头里拿到ImageBase
       OriginalImageBase = NTHeader->OptionalHeader.ImageBase;
+      printf("OriginalImageBase is :%p\n", OriginalImageBase);
       //定位到可选PE头的DataDirArray里的重定位表
       ImageDataDirectory = NTHeader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
-      //重定位表的实际地址
+      //重定位表的实际地址 第一个块的初始地址
       pImageBaseRelocation = (PIMAGE_BASE_RELOCATION)((ULONG)ModuleBase + ImageDataDirectory.VirtualAddress);
+      printf("pImageBaseRelocation old address is :%p\n", pImageBaseRelocation);
+      printf("pImageBaseRelocation old values is :%x\n", *pImageBaseRelocation);
       if (pImageBaseRelocation == NULL)
       {
           return;
       }
-      while (pImageBaseRelocation->SizeOfBlock)
+      
+      while (pImageBaseRelocation->SizeOfBlock)  // 判断是否到重定位表底部
       {
+          printf("pImageBaseRelocation->SizeOfBlock is : %x \n", pImageBaseRelocation->SizeOfBlock);
+          
           typedef struct
           {
               USHORT offset : 12;
               USHORT type : 4;
           }TypeOffset;
           TypeOffset* pTypeOffset = (TypeOffset*)(pImageBaseRelocation + 1);
-          uRelocTableSize = (pImageBaseRelocation->SizeOfBlock - 8) / 2;
+          uRelocTableSize = (pImageBaseRelocation->SizeOfBlock - 8) / 2;  // 要修改的重定位表的数量
           for (uIndex = 0; uIndex < uRelocTableSize; uIndex++)
           {
   
              if (pTypeOffset[uIndex].type == 3)
               {
                  uRelocAddress = (int*)(pTypeOffset[uIndex].offset + pImageBaseRelocation->VirtualAddress + (int)ModuleBase);
-                  //printf("%x\n", *uRelocAddress);
                  *uRelocAddress = (int)ModuleBase + (*uRelocAddress - OriginalImageBase);
+                 printf("ModuleBase is : %x\n", ModuleBase);
+                 printf("RelocAddress is : %x\n", *uRelocAddress);
              }
         }
           pImageBaseRelocation = (IMAGE_BASE_RELOCATION*)((ULONG)pImageBaseRelocation + pImageBaseRelocation->SizeOfBlock);
+          printf("pImageBaseRelocation new address is :%p\n", pImageBaseRelocation);
+          printf("pImageBaseRelocation new values is :%x\n", *pImageBaseRelocation);
     }
 
-     
+      // 输出更新的重定向表地址
+      printf("aaapImageBaseRelocation new address is :%x\n", *(PIMAGE_BASE_RELOCATION)((ULONG)ModuleBase + ImageDataDirectory.VirtualAddress));
   }
 // 从文件第一个字节定位到PE文件的头
 char* GetNTHeaders(char* pe_buffer)
@@ -445,7 +458,50 @@ IMAGE_DATA_DIRECTORY* GetPEDirectory(PVOID pe_buffer, size_t dir_id)
     }
     return peDir;
 }
+// 修复重定位表
+bool applyReloc(ULONGLONG newBase, ULONGLONG oldBase, PVOID modulePtr, SIZE_T moduleSize)
+{
+    IMAGE_DATA_DIRECTORY* relocDir = GetPEDirectory(modulePtr, IMAGE_DIRECTORY_ENTRY_BASERELOC);
+    if (relocDir == NULL) /* Cannot relocate - application have no relocation table */
+        return false;
 
+    size_t maxSize = relocDir->Size;
+    size_t relocAddr = relocDir->VirtualAddress;
+    IMAGE_BASE_RELOCATION* reloc = NULL;
+
+    size_t parsedSize = 0;
+    for (; parsedSize < maxSize; parsedSize += reloc->SizeOfBlock) {
+        reloc = (IMAGE_BASE_RELOCATION*)(relocAddr + parsedSize + size_t(modulePtr));
+        if (reloc->VirtualAddress == NULL || reloc->SizeOfBlock == 0)
+            break;
+
+        size_t entriesNum = (reloc->SizeOfBlock - sizeof(IMAGE_BASE_RELOCATION)) / sizeof(BASE_RELOCATION_ENTRY);
+        size_t page = reloc->VirtualAddress;
+
+        BASE_RELOCATION_ENTRY* entry = (BASE_RELOCATION_ENTRY*)(size_t(reloc) + sizeof(IMAGE_BASE_RELOCATION));
+        for (size_t i = 0; i < entriesNum; i++) {
+            size_t offset = entry->Offset;
+            size_t type = entry->Type;
+            size_t reloc_field = page + offset;
+            if (entry == NULL || type == 0)
+                break;
+            if (type != RELOC_32BIT_FIELD) {
+                printf("    [!] Not supported relocations format at %d: %d\n", (int)i, (int)type);
+                return false;
+            }
+            if (reloc_field >= moduleSize) {
+                printf("    [-] Out of Bound Field: %lx\n", reloc_field);
+                return false;
+            }
+
+            size_t* relocateAddr = (size_t*)(size_t(modulePtr) + reloc_field);
+            printf("    [V] Apply Reloc Field at %x\n", relocateAddr);
+            (*relocateAddr) = ((*relocateAddr) - oldBase + newBase);
+            entry = (BASE_RELOCATION_ENTRY*)(size_t(entry) + sizeof(BASE_RELOCATION_ENTRY));
+        }
+    }
+    return (parsedSize != 0);
+}
 // 输入一个PE文件的首地址，并把所需要的dll加载到IAT中
 bool RepairIAT(PVOID modulePtr)
 {
@@ -611,9 +667,12 @@ void PELoader(char* data, DWORD datasize)
     }
 
     // Fix the PE Import addr table
-    FixBaseRelocTable(pImageBase,ntHeader);
+    //FixBaseRelocTable(pImageBase, ntHeader);
     RepairIAT(pImageBase);
-
+    
+    if (pImageBase != preferAddr)
+        if (applyReloc((size_t)pImageBase, (size_t)preferAddr, pImageBase, ntHeader->OptionalHeader.SizeOfImage))
+            puts("[+] Relocation Fixed.");
 
     // AddressOfEntryPoint
     size_t retAddr = (size_t)(pImageBase)+ntHeader->OptionalHeader.AddressOfEntryPoint;
