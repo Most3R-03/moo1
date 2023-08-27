@@ -366,6 +366,49 @@ void freeargvW(wchar_t** array, int Argc)
     LocalFree(array);
 }
 
+void FixBaseRelocTable(PVOID ModuleBase, IMAGE_NT_HEADERS* NTHeader)
+  {
+      int    OriginalImageBase;
+      int    uRelocTableSize;
+      int* uRelocAddress;
+      int    uIndex;
+      IMAGE_DATA_DIRECTORY    ImageDataDirectory;
+      IMAGE_BASE_RELOCATION* pImageBaseRelocation;
+  
+      //定位到可选PE头里拿到ImageBase
+      OriginalImageBase = NTHeader->OptionalHeader.ImageBase;
+      //定位到可选PE头的DataDirArray里的重定位表
+      ImageDataDirectory = NTHeader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
+      //重定位表的实际地址
+      pImageBaseRelocation = (PIMAGE_BASE_RELOCATION)((ULONG)ModuleBase + ImageDataDirectory.VirtualAddress);
+      if (pImageBaseRelocation == NULL)
+      {
+          return;
+      }
+      while (pImageBaseRelocation->SizeOfBlock)
+      {
+          typedef struct
+          {
+              USHORT offset : 12;
+              USHORT type : 4;
+          }TypeOffset;
+          TypeOffset* pTypeOffset = (TypeOffset*)(pImageBaseRelocation + 1);
+          uRelocTableSize = (pImageBaseRelocation->SizeOfBlock - 8) / 2;
+          for (uIndex = 0; uIndex < uRelocTableSize; uIndex++)
+          {
+  
+             if (pTypeOffset[uIndex].type == 3)
+              {
+                 uRelocAddress = (int*)(pTypeOffset[uIndex].offset + pImageBaseRelocation->VirtualAddress + (int)ModuleBase);
+                  //printf("%x\n", *uRelocAddress);
+                 *uRelocAddress = (int)ModuleBase + (*uRelocAddress - OriginalImageBase);
+             }
+        }
+          pImageBaseRelocation = (IMAGE_BASE_RELOCATION*)((ULONG)pImageBaseRelocation + pImageBaseRelocation->SizeOfBlock);
+    }
+
+     
+  }
 // 从文件第一个字节定位到PE文件的头
 char* GetNTHeaders(char* pe_buffer)
 {
@@ -568,7 +611,9 @@ void PELoader(char* data, DWORD datasize)
     }
 
     // Fix the PE Import addr table
+    FixBaseRelocTable(pImageBase,ntHeader);
     RepairIAT(pImageBase);
+
 
     // AddressOfEntryPoint
     size_t retAddr = (size_t)(pImageBase)+ntHeader->OptionalHeader.AddressOfEntryPoint;
