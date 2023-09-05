@@ -58,61 +58,16 @@ char str_orign_byhuibian() {
 
 DWORD _getKernelBase()
 {
-    /*
-    DWORD dwPEB;
-    DWORD dwLDR;
-    DWORD dwInitList;
-    DWORD dwDllBase;//当前地址
-    PIMAGE_DOS_HEADER pImageDosHeader;//指向DOS头的指针
-    PIMAGE_NT_HEADERS pImageNtHeaders;//指向NT头的指针
-    DWORD dwVirtualAddress;//导出表偏移地址
-    PIMAGE_EXPORT_DIRECTORY pImageExportDirectory;//指向导出表的指针
-    PTCHAR lpName;//指向dll名字的指针
-    TCHAR szKernel32[] = TEXT("KERNEL32.dll");
-    __asm
-    {
-        mov eax, FS: [0x30]//获取PEB所在地址
-        mov dwPEB, eax
-    }
-
-    dwLDR = *(PDWORD)(dwPEB + 0xc);//获取PEB_LDR_DATA 结构指针
-    dwInitList = *(PDWORD)(dwLDR + 0x1c);//获取InInitializationOrderModuleList 链表头
-    //第一个LDR_MODULE节点InInitializationOrderModuleList成员的指针
-
-    for (; dwDllBase = *(PDWORD)(dwInitList + 8);//结构偏移0x8处存放模块基址
-        dwInitList = *(PDWORD)dwInitList//结构偏移0处存放下一模块结构的指针
-        )
-    {
-        pImageDosHeader = (PIMAGE_DOS_HEADER)dwDllBase;
-        pImageNtHeaders = (PIMAGE_NT_HEADERS)(dwDllBase + pImageDosHeader->e_lfanew);
-        dwVirtualAddress = pImageNtHeaders->OptionalHeader.DataDirectory[0].VirtualAddress;//导出表偏移
-        pImageExportDirectory = (PIMAGE_EXPORT_DIRECTORY)(dwDllBase + dwVirtualAddress);//导出表地址
-        lpName = (PTCHAR)(dwDllBase + pImageExportDirectory->Name);//dll名字
-
-        if (strlen(lpName) == 0xc && !strcmp(lpName, szKernel32))//判断是否为“KERNEL32.dll”
-        {
-            //return dwDllBase;
-            break;
-        }
-    }*/
-    
     DWORD dwDllBase1;
     __asm {
-    /*push ebp
-        mov ebp, esp
-        sub esp, 0x40*/
         xor ebx, ebx; EBX = 0x00000000
         mov ebx, fs: [ebx + 0x30] ;
-    mov ebx, [ebx + 0xC]; EBX = Address_of_LDR
+        mov ebx, [ebx + 0xC]; EBX = Address_of_LDR
         mov ebx, [ebx + 0x1C]; EBX = 1st entry in InitOrderModuleList / ntdll.dll
         mov ebx, [ebx]; EBX = 2nd entry in InitOrderModuleList / kernelbase.dll
         mov ebx, [ebx]; EBX = 3rd entry in InitOrderModuleList / kernel32.dll
         mov eax, [ebx + 0x8]; EAX = &kernel32.dll / Address of kernel32.dll
         mov DWORD PTR dwDllBase1, eax
-        /*   add esp, 0x40
-        mov esp, ebp
-        pop ebp
-        ret*/
     }
     return dwDllBase1;
 }
