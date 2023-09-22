@@ -1,10 +1,10 @@
 ﻿  FileName.cpp
-\\Mac\Home\Documents\源码分析\免杀\moo1\moo1\FileName.cpp(25,1): warning C4005: “_CRT_SECURE_NO_WARNINGS”: 宏重定义
-\\Mac\Home\Documents\源码分析\免杀\moo1\moo1\FileName.cpp(25,1): message : 之前在命令行上声明的“_CRT_SECURE_NO_WARNINGS”
-\\Mac\Home\Documents\源码分析\免杀\moo1\moo1\FileName.cpp(246,23): warning C4018: “<”: 有符号/无符号不匹配
+\\Mac\Home\Documents\SourceCode\免杀\moo1\moo1\FileName.cpp(25,1): warning C4005: “_CRT_SECURE_NO_WARNINGS”: 宏重定义
+\\Mac\Home\Documents\SourceCode\免杀\moo1\moo1\FileName.cpp(25,1): message : 之前在命令行上声明的“_CRT_SECURE_NO_WARNINGS”
+\\Mac\Home\Documents\SourceCode\免杀\moo1\moo1\FileName.cpp(246,23): warning C4018: “<”: 有符号/无符号不匹配
   moo1.cpp
-\\Mac\Home\Documents\源码分析\免杀\moo1\moo1\moo1.cpp(316,16): warning C4244: “初始化”: 从“long”转换到“char”，可能丢失数据
-\\Mac\Home\Documents\源码分析\免杀\moo1\moo1\moo1.cpp(366,17): warning C4101: “aaa”: 未引用的局部变量
+\\Mac\Home\Documents\SourceCode\免杀\moo1\moo1\moo1.cpp(271,16): warning C4244: “初始化”: 从“long”转换到“char”，可能丢失数据
+\\Mac\Home\Documents\SourceCode\免杀\moo1\moo1\moo1.cpp(321,17): warning C4101: “aaa”: 未引用的局部变量
   正在生成代码
   已完成代码的生成
-  moo1.vcxproj -> \\Mac\Home\Documents\源码分析\免杀\moo1\moo1\Release\moo1.exe
+  moo1.vcxproj -> \\Mac\Home\Documents\SourceCode\免杀\moo1\moo1\Release\moo1.exe
